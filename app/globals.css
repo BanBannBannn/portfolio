@@ -1,0 +1,61 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+/* @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap'); */
+:root {
+  --bg: #F5F7FF;
+  --surface: #FFFFFF;
+  --navy: #0D1B3E;
+  --blue: #3B6FE8;
+  --blue-light: #E0EAFF;
+  --blue-mid: #C7D7FA;
+  --text: #1A2340;
+  --muted: #5A6A8A;
+  --border: #DDE4F0;
+  --tag-bg: #EEF2FF;
+  --radius: 14px;
+  --shadow: 0 4px 24px rgba(13,27,62,.08);
+  --shadow-hover: 0 8px 40px rgba(59,111,232,.15);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+
+.font-display { font-family: 'Plus Jakarta Sans', sans-serif; }
+.font-mono    { font-family: 'JetBrains Mono', monospace; }
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity .55s ease, transform .55s ease;
+}
+.reveal.visible {
+  opacity: 1;
+  transform: none;
+}
+
+.api-line {
+  opacity: 0;
+  transform: translateY(4px);
+  animation: fadeUp .3s forwards;
+}
+@keyframes fadeUp { to { opacity: 1; transform: none; } }
+
+.cursor {
+  display: inline-block;
+  width: 2px; height: 14px;
+  background: #7dd3fc;
+  animation: blink 1s steps(1) infinite;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+.pulse-dot { animation: pulse 2s infinite; }
