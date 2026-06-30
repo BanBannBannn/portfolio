@@ -1,5 +1,9 @@
 'use client';
+import Image from 'next/image';
 import ApiCard from './ApiCard';
+
+const PORTRAIT_SRC = '/portrait.jpg';
+const CV_SRC = '/cv.pdf';
 
 const GithubIcon = () => (
   <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -54,6 +58,44 @@ export default function Hero() {
       {/* LEFT */}
       <div style={{ flex: 1, minWidth: 280 }}>
         <div style={{
+          width: 124, height: 124, borderRadius: '50%',
+          padding: 5, marginBottom: 24,
+          background: 'linear-gradient(135deg, var(--blue), #22c55e)',
+          boxShadow: '0 14px 36px rgba(59,111,232,.22)',
+        }}>
+          <div style={{
+            width: '100%', height: '100%', borderRadius: '50%',
+            overflow: 'hidden', background: 'var(--surface)',
+            display: 'grid', placeItems: 'center',
+            border: '4px solid var(--bg)', position: 'relative',
+          }}>
+            <span
+              className="font-display"
+              style={{
+                color: 'var(--blue)', fontWeight: 800,
+                fontSize: '2rem', letterSpacing: 0,
+              }}
+            >
+              GB
+            </span>
+            <Image
+              src={PORTRAIT_SRC}
+              alt="Portrait of Trần Văn Gia Bân"
+              width={124}
+              height={124}
+              onError={(event) => {
+                event.currentTarget.style.display = 'none';
+              }}
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           fontFamily: "'JetBrains Mono', monospace", fontSize: '.78rem',
           color: 'var(--blue)', background: 'var(--blue-light)',
@@ -93,8 +135,8 @@ export default function Hero() {
             <PlayIcon /> View Projects
           </a>
           <a
-            href="/cv.pdf"
-            download
+            href={CV_SRC}
+            download="Tran-Van-Gia-Ban-CV.pdf"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               fontWeight: 600, fontSize: '.9rem', color: 'var(--navy)',
