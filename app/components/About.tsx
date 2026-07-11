@@ -4,8 +4,8 @@ import Reveal from './Reveal';
 const stats = [
   { num: '2+', label: 'Years experience' },
   { num: '5+', label: 'Projects shipped' },
-  { num: '4',  label: 'Frameworks mastered' },
-  { num: '3',  label: 'Languages spoken' },
+  { num: '4', label: 'Frameworks mastered' },
+  { num: '3', label: 'Languages spoken' },
 ];
 
 export default function About() {
@@ -25,7 +25,7 @@ export default function About() {
         <Reveal>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {[
-              <>I&apos;m a <strong>Backend Developer based in Ho Chi Minh City</strong> with nearly 2 years of hands-on experience crafting APIs that power real products — from warehouse management systems to AI-driven restaurant menus.</>,
+              <>I&apos;m a <strong>Software Engineer based in Ho Chi Minh City</strong> with nearly 2 years of hands-on experience crafting APIs that power real products — from warehouse management systems to AI-driven restaurant menus.</>,
               <>At <strong>HANEXT Technology</strong>, I work across the full backend stack — designing REST and GraphQL APIs, building AI services with Python FastAPI, integrating vector databases for RAG pipelines, and deploying to cloud infrastructure.</>,
               <>I care deeply about <strong>clean architecture, developer experience, and systems that don&apos;t break at 3am</strong>. When I&apos;m not writing code, I&apos;m exploring distributed systems concepts and AI backend patterns.</>,
             ].map((text, i) => (
@@ -66,7 +66,7 @@ export default function About() {
               fontSize: '.78rem', fontWeight: 600, color: 'var(--navy)',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}/>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
               Open to fulltime roles
             </div>
           </div>

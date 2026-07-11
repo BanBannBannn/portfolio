@@ -4,7 +4,7 @@ import Reveal from './Reveal';
 const experiences = [
   {
     company: 'HANEXT Technology',
-    role: 'Backend Developer',
+    role: 'Software Engineer',
     date: 'Sep 2025 – Apr 2026',
     type: 'full',
     bullets: [
@@ -17,7 +17,7 @@ const experiences = [
   },
   {
     company: 'FPT Software',
-    role: 'Backend Developer Intern',
+    role: 'Software Engineer Intern',
     date: 'Jan 2024 – Apr 2024',
     type: 'intern',
     bullets: [
@@ -29,12 +29,12 @@ const experiences = [
 
 const BagIcon = () => (
   <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
-    <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z"/>
+    <path d="M20 6h-4V4c0-1.11-.89-2-2-2h-4c-1.11 0-2 .89-2 2v2H4c-1.11 0-1.99.89-1.99 2L2 19c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-6 0h-4V4h4v2z" />
   </svg>
 );
 const SchoolIcon = () => (
   <svg width="18" height="18" fill="white" viewBox="0 0 24 24">
-    <path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
+    <path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z" />
   </svg>
 );
 

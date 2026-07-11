@@ -2,15 +2,15 @@
 import { useEffect, useRef } from 'react';
 
 const lines = [
-  { delay: 0,    html: '<span class="c-brace">{</span>' },
-  { delay: 120,  html: '&nbsp;&nbsp;<span class="c-key">"name"</span>: <span class="c-str">"Trần Văn Gia Bân"</span>,' },
-  { delay: 240,  html: '&nbsp;&nbsp;<span class="c-key">"role"</span>: <span class="c-str">"Backend Developer"</span>,' },
-  { delay: 360,  html: '&nbsp;&nbsp;<span class="c-key">"location"</span>: <span class="c-str">"Ho Chi Minh City, VN"</span>,' },
-  { delay: 480,  html: '&nbsp;&nbsp;<span class="c-key">"experience"</span>: <span class="c-str">"~2 years"</span>,' },
-  { delay: 600,  html: '&nbsp;&nbsp;<span class="c-key">"stack"</span>: [' },
-  { delay: 700,  html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-arr">"ASP.NET Core"</span>, <span class="c-arr">"Spring Boot"</span>,' },
-  { delay: 800,  html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-arr">"FastAPI"</span>, <span class="c-arr">"NextJS"</span>' },
-  { delay: 900,  html: '&nbsp;&nbsp;],' },
+  { delay: 0, html: '<span class="c-brace">{</span>' },
+  { delay: 120, html: '&nbsp;&nbsp;<span class="c-key">"name"</span>: <span class="c-str">"Trần Văn Gia Bân"</span>,' },
+  { delay: 240, html: '&nbsp;&nbsp;<span class="c-key">"role"</span>: <span class="c-str">"Software Engineer"</span>,' },
+  { delay: 360, html: '&nbsp;&nbsp;<span class="c-key">"location"</span>: <span class="c-str">"Ho Chi Minh City, VN"</span>,' },
+  { delay: 480, html: '&nbsp;&nbsp;<span class="c-key">"experience"</span>: <span class="c-str">"~2 years"</span>,' },
+  { delay: 600, html: '&nbsp;&nbsp;<span class="c-key">"stack"</span>: [' },
+  { delay: 700, html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-arr">"ASP.NET Core"</span>, <span class="c-arr">"Spring Boot"</span>,' },
+  { delay: 800, html: '&nbsp;&nbsp;&nbsp;&nbsp;<span class="c-arr">"FastAPI"</span>, <span class="c-arr">"NextJS"</span>' },
+  { delay: 900, html: '&nbsp;&nbsp;],' },
   { delay: 1000, html: '&nbsp;&nbsp;<span class="c-key">"ai_skills"</span>: [<span class="c-arr">"RAG"</span>, <span class="c-arr">"LLM"</span>, <span class="c-arr">"Vector DB"</span>],' },
   { delay: 1200, html: '&nbsp;&nbsp;<span class="c-key">"open_to_work"</span>: <span class="c-bool">true</span>,' },
   { delay: 1350, html: '&nbsp;&nbsp;<span class="c-key">"status"</span>: <span class="c-str">"actively_interviewing"</span>' },
@@ -53,15 +53,15 @@ export default function ApiCard() {
         borderBottom: '1px solid rgba(255,255,255,.07)',
       }}>
         <div style={{ display: 'flex', gap: 6 }}>
-          {['#FF5F57','#FFBD2E','#28CA41'].map(c => (
-            <span key={c} style={{ width:10, height:10, borderRadius:'50%', background:c, display:'inline-block' }}/>
+          {['#FF5F57', '#FFBD2E', '#28CA41'].map(c => (
+            <span key={c} style={{ width: 10, height: 10, borderRadius: '50%', background: c, display: 'inline-block' }} />
           ))}
         </div>
         <div>
-          <span style={{ color:'#34d399', fontWeight:500, fontSize:'.7rem' }}>GET</span>
-          <span style={{ color:'#94a3b8', fontSize:'.7rem' }}>&nbsp;/api/developers/giaban</span>
+          <span style={{ color: '#34d399', fontWeight: 500, fontSize: '.7rem' }}>GET</span>
+          <span style={{ color: '#94a3b8', fontSize: '.7rem' }}>&nbsp;/api/developers/giaban</span>
         </div>
-        <span style={{ color:'#34d399', fontSize:'.65rem' }}>200 OK</span>
+        <span style={{ color: '#34d399', fontSize: '.65rem' }}>200 OK</span>
       </div>
 
       {/* Body */}
