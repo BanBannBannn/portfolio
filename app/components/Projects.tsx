@@ -8,7 +8,7 @@ const projects = [
     name: 'WareEase — Warehouse Management System',
     desc: 'Capstone project · 4 months. Full-featured inventory management API with role-based access control, permission management, and automated CI/CD deployment pipeline.',
     tags: ['ASP.NET Core', 'EF Core', 'SQL Server', 'JWT', 'CI/CD'],
-    href: 'https://github.com/ware-ease/we-api',
+    github: 'https://github.com/ware-ease/we-api',
   },
   {
     emoji: '🍽️',
@@ -16,7 +16,34 @@ const projects = [
     name: 'Smart Menu with AI',
     desc: '4 months. AI-powered restaurant menu system — backend APIs integrated with AWS Rekognition for image recognition, S3 for media storage, deployed on Azure cloud infrastructure.',
     tags: ['ASP.NET Core', 'SQL Server', 'AWS Rekognition', 'S3', 'Azure'],
-    href: 'https://github.com/BanBannBannn/SmartMenu',
+    github: 'https://github.com/BanBannBannn/SmartMenu',
+  },
+  {
+    emoji: '✨',
+    gradient: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+    name: 'SmartMenuVibe — Restaurant SaaS',
+    desc: 'Personal project. A multi-tenant restaurant SaaS: QR ordering, a realtime kitchen Kanban board, context-aware dish recommendations (time + weather + best-sellers), AI-written menu descriptions, and a drag-and-drop menu builder.',
+    tags: ['Next.js', 'React 19', 'Supabase', 'Realtime', 'Azure Face'],
+    github: 'https://github.com/BanBannBannn/SmartMenuVibe',
+    demo: 'https://smart-menu-vibe.vercel.app/',
+  },
+  {
+    emoji: '🧰',
+    gradient: 'linear-gradient(135deg,#fef3c7,#fde68a)',
+    name: 'DevToolBox AI — Free Developer Tools',
+    desc: 'Personal project. An SEO-first site with 12 free, browser-based developer tools (JSON formatter, JWT decoder, QR & UUID generators, git and AI-prompt helpers) plus a markdown dev blog and a RAG-powered docs assistant.',
+    tags: ['Next.js 16', 'React 19', 'TypeScript', 'Tailwind', 'SEO'],
+    github: 'https://github.com/BanBannBannn/devtoolbox-ai',
+    demo: 'https://devtoolbox-ai-murex.vercel.app/',
+  },
+  {
+    emoji: '🌐',
+    gradient: 'linear-gradient(135deg,#e0e7ff,#c7d2fe)',
+    name: 'Personal Portfolio (this site)',
+    desc: 'Personal project. The site you are looking at — a fast, responsive portfolio built on the Next.js App Router, with PWA support (installable, offline-ready) and smooth scroll-reveal animations.',
+    tags: ['Next.js', 'TypeScript', 'PWA', 'App Router'],
+    github: 'https://github.com/BanBannBannn/portfolio',
+    demo: 'https://portfolio-self-seven-kmbo72h8bm.vercel.app/',
   },
 ];
 
@@ -39,16 +66,13 @@ export default function Projects() {
       </Reveal>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 20 }}>
-        {projects.map(({ emoji, gradient, name, desc, tags, href }, i) => (
+        {projects.map(({ emoji, gradient, name, desc, tags, github, demo }, i) => (
           <Reveal key={name} delay={i * 80}>
-            <a
-              href={href}
-              target="_blank"
-              rel="noreferrer"
+            <div
               style={{
                 display: 'flex', flexDirection: 'column',
                 background: 'var(--bg)', border: '1.5px solid var(--border)',
-                borderRadius: 14, overflow: 'hidden', textDecoration: 'none',
+                borderRadius: 14, overflow: 'hidden',
                 transition: 'all .3s', height: '100%',
               }}
               onMouseEnter={e => {
@@ -88,11 +112,28 @@ export default function Projects() {
                     </span>
                   ))}
                 </div>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: 'var(--blue)' }}>
-                  View on GitHub <ArrowIcon />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+                  {demo && (
+                    <a
+                      href={demo}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: 'var(--blue)', textDecoration: 'none' }}
+                    >
+                      Live demo <ArrowIcon />
+                    </a>
+                  )}
+                  <a
+                    href={github}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: demo ? 'var(--muted)' : 'var(--blue)', textDecoration: 'none' }}
+                  >
+                    {demo ? 'GitHub' : 'View on GitHub'} <ArrowIcon />
+                  </a>
                 </div>
               </div>
-            </a>
+            </div>
           </Reveal>
         ))}
       </div>
