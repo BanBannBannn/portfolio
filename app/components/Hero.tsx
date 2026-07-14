@@ -3,7 +3,7 @@ import Image from 'next/image';
 import ApiCard from './ApiCard';
 
 const PORTRAIT_SRC = '/portrait.jpg';
-const CV_SRC = '/cv.pdf';
+const CV_SRC = '/cv-TranVanGiaBan.pdf';
 
 const GithubIcon = () => (
   <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
@@ -136,7 +136,7 @@ export default function Hero() {
           </a>
           <a
             href={CV_SRC}
-            download="Tran-Van-Gia-Ban-CV.pdf"
+            download="cv-TranVanGiaBan.pdf"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               fontWeight: 600, fontSize: '.9rem', color: 'var(--navy)',
