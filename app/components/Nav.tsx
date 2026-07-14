@@ -3,11 +3,33 @@ import { useEffect, useState } from 'react';
 
 export default function Nav() {
   const [scrolled, setScrolled] = useState(false);
+  const [activeSection, setActiveSection] = useState('');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 10);
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setActiveSection(entry.target.id);
+          }
+        });
+      },
+      { rootMargin: '-20% 0px -50% 0px' }
+    );
+
+    const sections = ['home', 'about', 'skills', 'experience', 'projects', 'contact'];
+    sections.forEach((section) => {
+      const element = document.getElementById(section);
+      if (element) observer.observe(element);
+    });
+
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -32,26 +54,35 @@ export default function Nav() {
       </a>
 
       <div style={{ display: 'flex', gap: 8 }}>
-        {['About', 'Skills', 'Experience', 'Projects'].map(s => (
-          <a
-            key={s}
-            href={`#${s.toLowerCase()}`}
-            style={{
-              fontSize: '.85rem', fontWeight: 500, color: 'var(--muted)',
-              padding: '6px 14px', borderRadius: 30, transition: 'all .2s',
-            }}
-            onMouseEnter={e => {
-              (e.target as HTMLElement).style.color = 'var(--blue)';
-              (e.target as HTMLElement).style.background = 'var(--blue-light)';
-            }}
-            onMouseLeave={e => {
-              (e.target as HTMLElement).style.color = 'var(--muted)';
-              (e.target as HTMLElement).style.background = 'transparent';
-            }}
-          >
-            {s}
-          </a>
-        ))}
+        {['About', 'Skills', 'Experience', 'Projects'].map(s => {
+          const isActive = activeSection === s.toLowerCase();
+          return (
+            <a
+              key={s}
+              href={`#${s.toLowerCase()}`}
+              style={{
+                fontSize: '.85rem', fontWeight: 500,
+                color: isActive ? 'var(--blue)' : 'var(--muted)',
+                background: isActive ? 'var(--blue-light)' : 'transparent',
+                padding: '6px 14px', borderRadius: 30, transition: 'all .2s',
+              }}
+              onMouseEnter={e => {
+                if (!isActive) {
+                  (e.target as HTMLElement).style.color = 'var(--blue)';
+                  (e.target as HTMLElement).style.background = 'var(--blue-light)';
+                }
+              }}
+              onMouseLeave={e => {
+                if (!isActive) {
+                  (e.target as HTMLElement).style.color = 'var(--muted)';
+                  (e.target as HTMLElement).style.background = 'transparent';
+                }
+              }}
+            >
+              {s}
+            </a>
+          );
+        })}
       </div>
       <a
         href="mailto:tranvangiaban@gmail.com"

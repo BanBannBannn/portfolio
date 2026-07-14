@@ -18,6 +18,9 @@ const projects = [
     tags: ['ASP.NET Core', 'SQL Server', 'AWS Rekognition', 'S3', 'Azure'],
     github: 'https://github.com/BanBannBannn/SmartMenu',
   },
+];
+
+const personalProjects = [
   {
     emoji: '✨',
     gradient: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
@@ -53,6 +56,79 @@ const ArrowIcon = () => (
   </svg>
 );
 
+const ProjectCard = ({ project, index }: { project: any, index: number }) => {
+  return (
+    <Reveal delay={index * 80}>
+      <div
+        style={{
+          display: 'flex', flexDirection: 'column',
+          background: 'var(--bg)', border: '1.5px solid var(--border)',
+          borderRadius: 14, overflow: 'hidden',
+          transition: 'all .3s', height: '100%',
+        }}
+        onMouseEnter={e => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.borderColor = 'var(--blue)';
+          el.style.transform = 'translateY(-4px)';
+          el.style.boxShadow = 'var(--shadow-hover)';
+        }}
+        onMouseLeave={e => {
+          const el = e.currentTarget as HTMLElement;
+          el.style.borderColor = 'var(--border)';
+          el.style.transform = 'none';
+          el.style.boxShadow = 'none';
+        }}
+      >
+        {/* Top banner */}
+        <div style={{ height: 140, background: project.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
+          {project.emoji}
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px 22px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+          <div className="font-display" style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--navy)', marginBottom: 6 }}>
+            {project.name}
+          </div>
+          <p style={{ fontSize: '.85rem', color: 'var(--muted)', lineHeight: 1.6, flex: 1, marginBottom: 14 }}>
+            {project.desc}
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
+            {project.tags.map((t: string) => (
+              <span key={t} className="font-mono" style={{
+                fontSize: '.68rem', color: 'var(--blue)',
+                background: 'var(--blue-light)', padding: '3px 8px',
+                borderRadius: 6, border: '1px solid var(--blue-mid)',
+              }}>
+                {t}
+              </span>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            {project.demo && (
+              <a
+                href={project.demo}
+                target="_blank"
+                rel="noreferrer"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: 'var(--blue)', textDecoration: 'none' }}
+              >
+                Live demo <ArrowIcon />
+              </a>
+            )}
+            <a
+              href={project.github}
+              target="_blank"
+              rel="noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: project.demo ? 'var(--muted)' : 'var(--blue)', textDecoration: 'none' }}
+            >
+              {project.demo ? 'GitHub' : 'View on GitHub'} <ArrowIcon />
+            </a>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+};
+
 export default function Projects() {
   return (
     <section id="projects" style={{ padding: '100px clamp(20px,6vw,120px)', background: 'var(--surface)' }}>
@@ -66,75 +142,20 @@ export default function Projects() {
       </Reveal>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 20 }}>
-        {projects.map(({ emoji, gradient, name, desc, tags, github, demo }, i) => (
-          <Reveal key={name} delay={i * 80}>
-            <div
-              style={{
-                display: 'flex', flexDirection: 'column',
-                background: 'var(--bg)', border: '1.5px solid var(--border)',
-                borderRadius: 14, overflow: 'hidden',
-                transition: 'all .3s', height: '100%',
-              }}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.borderColor = 'var(--blue)';
-                el.style.transform = 'translateY(-4px)';
-                el.style.boxShadow = 'var(--shadow-hover)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.borderColor = 'var(--border)';
-                el.style.transform = 'none';
-                el.style.boxShadow = 'none';
-              }}
-            >
-              {/* Top banner */}
-              <div style={{ height: 140, background: gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
-                {emoji}
-              </div>
+        {projects.map((project, i) => (
+          <ProjectCard key={project.name} project={project} index={i} />
+        ))}
+      </div>
 
-              {/* Body */}
-              <div style={{ padding: '20px 22px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                <div className="font-display" style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--navy)', marginBottom: 6 }}>
-                  {name}
-                </div>
-                <p style={{ fontSize: '.85rem', color: 'var(--muted)', lineHeight: 1.6, flex: 1, marginBottom: 14 }}>
-                  {desc}
-                </p>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginBottom: 16 }}>
-                  {tags.map(t => (
-                    <span key={t} className="font-mono" style={{
-                      fontSize: '.68rem', color: 'var(--blue)',
-                      background: 'var(--blue-light)', padding: '3px 8px',
-                      borderRadius: 6, border: '1px solid var(--blue-mid)',
-                    }}>
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-                  {demo && (
-                    <a
-                      href={demo}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: 'var(--blue)', textDecoration: 'none' }}
-                    >
-                      Live demo <ArrowIcon />
-                    </a>
-                  )}
-                  <a
-                    href={github}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '.8rem', fontWeight: 600, color: demo ? 'var(--muted)' : 'var(--blue)', textDecoration: 'none' }}
-                  >
-                    {demo ? 'GitHub' : 'View on GitHub'} <ArrowIcon />
-                  </a>
-                </div>
-              </div>
-            </div>
-          </Reveal>
+      <Reveal>
+        <h3 className="font-display" style={{ fontSize: 'clamp(1.4rem,2.5vw,1.8rem)', fontWeight: 700, color: 'var(--navy)', letterSpacing: '-0.5px', marginTop: 80, marginBottom: 32, lineHeight: 1.15 }}>
+          Personal <span style={{ color: 'var(--blue)' }}>Projects</span>
+        </h3>
+      </Reveal>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))', gap: 20 }}>
+        {personalProjects.map((project, i) => (
+          <ProjectCard key={project.name} project={project} index={i} />
         ))}
       </div>
     </section>
