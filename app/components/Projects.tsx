@@ -22,6 +22,15 @@ const projects = [
 
 const personalProjects = [
   {
+    emoji: '🎮',
+    gradient: 'linear-gradient(135deg,#ffedd5,#fed7aa)',
+    name: 'GameHub — Classic Web Games Collection',
+    desc: 'Personal project. An offline-first PWA game portal featuring 6 fully playable classic games: Chess (with Stockfish AI), Xiangqi, Gomoku, Sudoku, Minesweeper, and Number Guessing. Features include IndexedDB progress auto-saving, unified Zustand state management, fluid Framer Motion animations, and responsive hotseat multiplayer.',
+    tags: ['Next.js', 'React 19', 'TypeScript', 'Zustand', 'PWA'],
+    github: 'https://github.com/BanBannBannn/gamehub',
+    demo: 'https://gamehub-board.vercel.app/',
+  },
+  {
     emoji: '✨',
     gradient: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
     name: 'SmartMenuVibe — Restaurant SaaS',
