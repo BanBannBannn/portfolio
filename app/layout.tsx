@@ -1,5 +1,17 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
+import Background from './components/Background';
+import CursorGlow from './components/CursorGlow';
+import ScrollProgress from './components/ScrollProgress';
+import ThemeSwitcher from './components/ThemeSwitcher';
+
+const THEME_INIT = `
+try {
+  var t = localStorage.getItem('portfolio-theme');
+  if (t && t !== 'aurora') document.documentElement.setAttribute('data-theme', t);
+} catch (e) {}
+`;
 
 export const metadata: Metadata = {
   title: 'Trần Văn Gia Bân — Software Engineer',
@@ -14,13 +26,20 @@ export const metadata: Metadata = {
 };
 
 export const viewport = {
-  themeColor: '#111827',
+  themeColor: '#06070f',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Script id="theme-init" strategy="beforeInteractive">{THEME_INIT}</Script>
+        <Background />
+        <CursorGlow />
+        <ScrollProgress />
+        {children}
+        <ThemeSwitcher />
+      </body>
     </html>
   );
 }

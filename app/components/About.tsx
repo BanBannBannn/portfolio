@@ -1,5 +1,7 @@
 'use client';
 import Reveal from './Reveal';
+import Counter from './Counter';
+import { handleSpotlight } from '../lib/interactions';
 
 const stats = [
   { num: '2+', label: 'Years experience' },
@@ -16,7 +18,7 @@ export default function About() {
           01 / About
         </p>
         <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          The engineer <span style={{ color: 'var(--blue)' }}>behind the API</span>
+          The engineer <span className="grad-text">behind the API</span>
         </h2>
       </Reveal>
 
@@ -37,11 +39,12 @@ export default function About() {
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 32 }}>
             {stats.map(({ num, label }) => (
-              <div key={label} style={{
-                background: 'var(--blue-light)', borderRadius: 12, padding: 20,
-                border: '1px solid var(--blue-mid)',
+              <div key={label} className="glass spotlight" onMouseMove={handleSpotlight} style={{
+                borderRadius: 12, padding: 20,
               }}>
-                <div className="font-display" style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--blue)', lineHeight: 1 }}>{num}</div>
+                <div className="font-display grad-text" style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
+                  <Counter value={num} />
+                </div>
                 <div style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 4 }}>{label}</div>
               </div>
             ))}
@@ -50,23 +53,23 @@ export default function About() {
 
         {/* Avatar */}
         <Reveal delay={150}>
-          <div style={{
+          <div className="glass" style={{
             aspectRatio: '1', borderRadius: 20, overflow: 'hidden',
-            background: 'linear-gradient(135deg,var(--blue-light),var(--blue-mid))',
+            background: 'linear-gradient(135deg, rgba(110,168,255,.14), rgba(167,139,250,.14))',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             position: 'relative', maxWidth: 360, margin: '0 auto',
           }}>
-            <span className="font-display" style={{ fontSize: '6rem', fontWeight: 800, color: 'var(--blue)', opacity: .3, userSelect: 'none' }}>
+            <span className="font-display grad-text" style={{ fontSize: '6rem', fontWeight: 800, opacity: .5, userSelect: 'none' }}>
               GB
             </span>
-            <div style={{
+            <div className="glass" style={{
               position: 'absolute', bottom: 20, right: 20,
-              background: 'var(--surface)', borderRadius: 12, padding: '10px 16px',
+              borderRadius: 12, padding: '10px 16px',
               boxShadow: 'var(--shadow)',
               fontSize: '.78rem', fontWeight: 600, color: 'var(--navy)',
               display: 'flex', alignItems: 'center', gap: 6,
             }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
               Open to fulltime roles
             </div>
           </div>

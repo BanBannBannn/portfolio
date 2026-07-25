@@ -1,5 +1,7 @@
 'use client';
+import { useState } from 'react';
 import Reveal from './Reveal';
+import { handleSpotlight, handleMagnetic, resetMagnetic } from '../lib/interactions';
 
 const contacts = [
   {
@@ -49,8 +51,27 @@ const MailIcon = () => (
     <path d="M20 4H4a2 2 0 00-2 2v12a2 2 0 002 2h16a2 2 0 002-2V6a2 2 0 00-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
   </svg>
 );
+const CopyIcon = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+    <rect x="9" y="9" width="12" height="12" rx="2" />
+    <path d="M5 15V5a2 2 0 012-2h10" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+    <path d="M20 6L9 17l-5-5" />
+  </svg>
+);
 
 export default function Contact() {
+  const [copied, setCopied] = useState<string | null>(null);
+
+  const copy = (label: string, val: string) => {
+    navigator.clipboard?.writeText(val).catch(() => {});
+    setCopied(label);
+    setTimeout(() => setCopied(c => (c === label ? null : c)), 1500);
+  };
+
   return (
     <section id="contact" style={{ padding: '100px clamp(20px,6vw,120px)' }}>
       <Reveal>
@@ -59,7 +80,7 @@ export default function Contact() {
             05 / Contact
           </p>
           <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 16, lineHeight: 1.15 }}>
-            Let&apos;s <span style={{ color: 'var(--blue)' }}>work together</span>
+            Let&apos;s <span className="grad-text">work together</span>
           </h2>
           <p style={{ color: 'var(--muted)', fontSize: '1rem', marginBottom: 48, lineHeight: 1.7 }}>
             I&apos;m actively looking for fulltime backend roles. Whether you have a position,
@@ -68,20 +89,14 @@ export default function Contact() {
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: 16, flexWrap: 'wrap', marginBottom: 48 }}>
             {contacts.map(({ href, label, val, icon }) => (
-              <a
+              <div
                 key={label}
-                href={href}
-                target={href.startsWith('http') ? '_blank' : undefined}
-                rel="noreferrer"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12,
-                  background: 'var(--surface)', border: '1.5px solid var(--border)',
-                  borderRadius: 12, padding: '16px 22px', transition: 'all .25s',
-                  textDecoration: 'none',
-                }}
+                className="glass spotlight"
+                onMouseMove={handleSpotlight}
+                style={{ position: 'relative', borderRadius: 12, transition: 'all .25s' }}
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = 'var(--blue)';
+                  el.style.borderColor = 'var(--border-hover)';
                   el.style.transform = 'translateY(-2px)';
                   el.style.boxShadow = 'var(--shadow)';
                 }}
@@ -92,35 +107,59 @@ export default function Contact() {
                   el.style.boxShadow = 'none';
                 }}
               >
-                <div style={{ width:36, height:36, borderRadius:9, background:'var(--blue-light)', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {icon}
-                </div>
-                <div>
-                  <div style={{ fontSize: '.72rem', color: 'var(--muted)', fontWeight: 500 }}>{label}</div>
-                  <div className="font-display" style={{ fontSize: '.88rem', fontWeight: 600, color: 'var(--navy)' }}>{val}</div>
-                </div>
-              </a>
+                <a
+                  href={href}
+                  target={href.startsWith('http') ? '_blank' : undefined}
+                  rel="noreferrer"
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    padding: '16px 22px', textDecoration: 'none',
+                  }}
+                >
+                  <div style={{ width:36, height:36, borderRadius:9, background:'var(--blue-light)', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                    {icon}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '.72rem', color: 'var(--muted)', fontWeight: 500 }}>{label}</div>
+                    <div className="font-display" style={{ fontSize: '.88rem', fontWeight: 600, color: 'var(--navy)' }}>{val}</div>
+                  </div>
+                </a>
+                <button
+                  type="button"
+                  className="copy-btn"
+                  aria-label={`Copy ${label}`}
+                  onClick={() => copy(label, val)}
+                  style={{
+                    position: 'absolute', top: 8, right: 8,
+                    width: 24, height: 24, borderRadius: 7,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(255,255,255,.06)', border: '1px solid var(--border)',
+                    color: copied === label ? 'var(--green)' : 'var(--muted)', cursor: 'pointer',
+                  }}
+                >
+                  {copied === label ? <CheckIcon /> : <CopyIcon />}
+                </button>
+              </div>
             ))}
           </div>
 
           <a
             href="mailto:tranvangiaban@gmail.com"
+            className="magnetic"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
-              fontWeight: 700, fontSize: '1rem', color: '#fff',
-              background: 'var(--blue)', padding: '16px 36px', borderRadius: 30,
-              boxShadow: '0 6px 24px rgba(59,111,232,.35)', transition: 'all .25s',
+              fontWeight: 700, fontSize: '1rem', color: 'var(--cta-text)',
+              background: 'var(--gradient-accent)', padding: '16px 36px', borderRadius: 30,
+              boxShadow: '0 6px 32px rgba(110,168,255,.35)',
               textDecoration: 'none',
             }}
+            onMouseMove={e => handleMagnetic(e, 0.25)}
             onMouseEnter={e => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.transform = 'translateY(-2px)';
-              el.style.boxShadow = '0 10px 30px rgba(59,111,232,.45)';
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 10px 40px rgba(110,168,255,.5)';
             }}
             onMouseLeave={e => {
-              const el = e.currentTarget as HTMLElement;
-              el.style.transform = 'none';
-              el.style.boxShadow = '0 6px 24px rgba(59,111,232,.35)';
+              resetMagnetic(e);
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 32px rgba(110,168,255,.35)';
             }}
           >
             <MailIcon /> Send me a message

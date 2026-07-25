@@ -1,5 +1,6 @@
 'use client';
 import Reveal from './Reveal';
+import { handleSpotlight } from '../lib/interactions';
 
 const skillGroups = [
   { icon: '⚡', title: 'Languages',          tags: ['C#', 'Java', 'Python', 'JavaScript', 'TypeScript'] },
@@ -23,9 +24,9 @@ function Tag({ label }: { label: string }) {
       }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLElement;
-        el.style.background = 'var(--blue)';
-        el.style.color = '#fff';
-        el.style.borderColor = 'var(--blue)';
+        el.style.background = 'var(--gradient-accent)';
+        el.style.color = 'var(--cta-text)';
+        el.style.borderColor = 'transparent';
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLElement;
@@ -47,7 +48,7 @@ export default function Skills() {
           02 / Skills
         </p>
         <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          My <span style={{ color: 'var(--blue)' }}>technical toolkit</span>
+          My <span className="grad-text">technical toolkit</span>
         </h2>
       </Reveal>
 
@@ -55,13 +56,14 @@ export default function Skills() {
         {skillGroups.map(({ icon, title, tags }, i) => (
           <Reveal key={title} delay={i * 60}>
             <div
+              className="glass spotlight"
               style={{
-                background: 'var(--bg)', border: '1.5px solid var(--border)',
                 borderRadius: 14, padding: 24, transition: 'all .25s', height: '100%',
               }}
+              onMouseMove={handleSpotlight}
               onMouseEnter={e => {
                 const el = e.currentTarget as HTMLElement;
-                el.style.borderColor = 'var(--blue-mid)';
+                el.style.borderColor = 'var(--border-hover)';
                 el.style.boxShadow = 'var(--shadow-hover)';
                 el.style.transform = 'translateY(-2px)';
               }}

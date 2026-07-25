@@ -1,10 +1,11 @@
 'use client';
 import Reveal from './Reveal';
+import { handleSpotlight } from '../lib/interactions';
 
 const projects = [
   {
     emoji: '📦',
-    gradient: 'linear-gradient(135deg,#dbeafe,#bfdbfe)',
+    gradient: 'linear-gradient(135deg,rgba(110,168,255,.28),rgba(34,211,238,.18))',
     name: 'WareEase — Warehouse Management System',
     desc: 'Capstone project · 4 months. Full-featured inventory management API with role-based access control, permission management, and automated CI/CD deployment pipeline.',
     tags: ['ASP.NET Core', 'EF Core', 'SQL Server', 'JWT', 'CI/CD'],
@@ -12,7 +13,7 @@ const projects = [
   },
   {
     emoji: '🍽️',
-    gradient: 'linear-gradient(135deg,#dcfce7,#bbf7d0)',
+    gradient: 'linear-gradient(135deg,rgba(52,211,153,.28),rgba(110,168,255,.16))',
     name: 'Smart Menu with AI',
     desc: '4 months. AI-powered restaurant menu system — backend APIs integrated with AWS Rekognition for image recognition, S3 for media storage, deployed on Azure cloud infrastructure.',
     tags: ['ASP.NET Core', 'SQL Server', 'AWS Rekognition', 'S3', 'Azure'],
@@ -23,7 +24,7 @@ const projects = [
 const personalProjects = [
   {
     emoji: '🎮',
-    gradient: 'linear-gradient(135deg,#ffedd5,#fed7aa)',
+    gradient: 'linear-gradient(135deg,rgba(251,146,60,.26),rgba(167,139,250,.18))',
     name: 'GameHub — Classic Web Games Collection',
     desc: 'Personal project. An offline-first PWA game portal featuring 6 fully playable classic games: Chess (with Stockfish AI), Xiangqi, Gomoku, Sudoku, Minesweeper, and Number Guessing. Features include IndexedDB progress auto-saving, unified Zustand state management, fluid Framer Motion animations, and responsive hotseat multiplayer.',
     tags: ['Next.js', 'React 19', 'TypeScript', 'Zustand', 'PWA'],
@@ -32,7 +33,7 @@ const personalProjects = [
   },
   {
     emoji: '✨',
-    gradient: 'linear-gradient(135deg,#ede9fe,#ddd6fe)',
+    gradient: 'linear-gradient(135deg,rgba(167,139,250,.3),rgba(110,168,255,.16))',
     name: 'SmartMenuVibe — Restaurant SaaS',
     desc: 'Personal project. A multi-tenant restaurant SaaS: QR ordering, a realtime kitchen Kanban board, context-aware dish recommendations (time + weather + best-sellers), AI-written menu descriptions, and a drag-and-drop menu builder.',
     tags: ['Next.js', 'React 19', 'Supabase', 'Realtime', 'Azure Face'],
@@ -41,7 +42,7 @@ const personalProjects = [
   },
   {
     emoji: '🧰',
-    gradient: 'linear-gradient(135deg,#fef3c7,#fde68a)',
+    gradient: 'linear-gradient(135deg,rgba(251,191,36,.26),rgba(34,211,238,.16))',
     name: 'DevToolBox AI — Free Developer Tools',
     desc: 'Personal project. An SEO-first site with 12 free, browser-based developer tools (JSON formatter, JWT decoder, QR & UUID generators, git and AI-prompt helpers) plus a markdown dev blog and a RAG-powered docs assistant.',
     tags: ['Next.js 16', 'React 19', 'TypeScript', 'Tailwind', 'SEO'],
@@ -50,7 +51,7 @@ const personalProjects = [
   },
   {
     emoji: '🌐',
-    gradient: 'linear-gradient(135deg,#e0e7ff,#c7d2fe)',
+    gradient: 'linear-gradient(135deg,rgba(110,168,255,.28),rgba(167,139,250,.2))',
     name: 'Personal Portfolio (this site)',
     desc: 'Personal project. The site you are looking at — a fast, responsive portfolio built on the Next.js App Router, with PWA support (installable, offline-ready) and smooth scroll-reveal animations.',
     tags: ['Next.js', 'TypeScript', 'PWA', 'App Router'],
@@ -65,20 +66,37 @@ const ArrowIcon = () => (
   </svg>
 );
 
-const ProjectCard = ({ project, index }: { project: any, index: number }) => {
+type Project = {
+  emoji: string;
+  gradient: string;
+  name: string;
+  desc: string;
+  tags: string[];
+  github: string;
+  demo?: string;
+};
+
+const ProjectCard = ({ project, index }: { project: Project, index: number }) => {
   return (
     <Reveal delay={index * 80}>
       <div
+        className="glass spotlight"
         style={{
           display: 'flex', flexDirection: 'column',
-          background: 'var(--bg)', border: '1.5px solid var(--border)',
           borderRadius: 14, overflow: 'hidden',
-          transition: 'all .3s', height: '100%',
+          transition: 'transform .3s, box-shadow .3s, border-color .3s', height: '100%',
+        }}
+        onMouseMove={e => {
+          handleSpotlight(e);
+          const el = e.currentTarget;
+          const rect = el.getBoundingClientRect();
+          const rx = ((e.clientY - rect.top) / rect.height - 0.5) * -6;
+          const ry = ((e.clientX - rect.left) / rect.width - 0.5) * 6;
+          el.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translateY(-4px)`;
         }}
         onMouseEnter={e => {
           const el = e.currentTarget as HTMLElement;
-          el.style.borderColor = 'var(--blue)';
-          el.style.transform = 'translateY(-4px)';
+          el.style.borderColor = 'var(--border-hover)';
           el.style.boxShadow = 'var(--shadow-hover)';
         }}
         onMouseLeave={e => {
@@ -89,7 +107,7 @@ const ProjectCard = ({ project, index }: { project: any, index: number }) => {
         }}
       >
         {/* Top banner */}
-        <div style={{ height: 140, background: project.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
+        <div style={{ height: 140, background: project.gradient, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '3rem' }}>
           {project.emoji}
         </div>
 
@@ -146,7 +164,7 @@ export default function Projects() {
           04 / Projects
         </p>
         <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          Things I&apos;ve <span style={{ color: 'var(--blue)' }}>shipped</span>
+          Things I&apos;ve <span className="grad-text">shipped</span>
         </h2>
       </Reveal>
 
@@ -158,7 +176,7 @@ export default function Projects() {
 
       <Reveal>
         <h3 className="font-display" style={{ fontSize: 'clamp(1.4rem,2.5vw,1.8rem)', fontWeight: 700, color: 'var(--navy)', letterSpacing: '-0.5px', marginTop: 80, marginBottom: 32, lineHeight: 1.15 }}>
-          Personal <span style={{ color: 'var(--blue)' }}>Projects</span>
+          Personal <span className="grad-text">Projects</span>
         </h3>
       </Reveal>
 

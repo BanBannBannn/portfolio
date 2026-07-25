@@ -1,6 +1,7 @@
 'use client';
 import Image from 'next/image';
 import ApiCard from './ApiCard';
+import { handleMagnetic, resetMagnetic } from '../lib/interactions';
 
 const PORTRAIT_SRC = '/portrait.jpg';
 const CV_SRC = '/cv-TranVanGiaBan.pdf';
@@ -60,12 +61,12 @@ export default function Hero() {
         <div style={{
           width: 124, height: 124, borderRadius: '50%',
           padding: 5, marginBottom: 24,
-          background: 'linear-gradient(135deg, var(--blue), #22c55e)',
-          boxShadow: '0 14px 36px rgba(59,111,232,.22)',
+          background: 'var(--gradient-accent)',
+          boxShadow: '0 0 48px rgba(110,168,255,.35), 0 14px 36px rgba(0,0,0,.4)',
         }}>
           <div style={{
             width: '100%', height: '100%', borderRadius: '50%',
-            overflow: 'hidden', background: 'var(--surface)',
+            overflow: 'hidden', background: 'var(--surface-solid)',
             display: 'grid', placeItems: 'center',
             border: '4px solid var(--bg)', position: 'relative',
           }}>
@@ -95,13 +96,13 @@ export default function Hero() {
           </div>
         </div>
 
-        <div style={{
+        <div className="glass" style={{
           display: 'inline-flex', alignItems: 'center', gap: 8,
           fontFamily: "'JetBrains Mono', monospace", fontSize: '.78rem',
-          color: 'var(--blue)', background: 'var(--blue-light)',
+          color: 'var(--blue)',
           padding: '6px 14px', borderRadius: 30, marginBottom: 24,
         }}>
-          <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+          <span className="pulse-dot" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
           Open to work · HCMC, Vietnam
         </div>
 
@@ -111,7 +112,7 @@ export default function Hero() {
           lineHeight: 1.1, letterSpacing: '-1.5px', marginBottom: 20,
         }}>
           Crafting software<br />
-          that <span style={{ color: 'var(--blue)' }}>scales</span> &<br />
+          that <span className="grad-text">scales</span> &<br />
           systems that think.
         </h1>
 
@@ -124,12 +125,20 @@ export default function Hero() {
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <a
             href="#projects"
+            className="magnetic"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
-              fontWeight: 600, fontSize: '.9rem', color: '#fff',
-              background: 'var(--blue)', padding: '13px 26px', borderRadius: 30,
-              boxShadow: '0 4px 14px rgba(59,111,232,.35)', transition: 'all .25s',
-              textDecoration: 'none',
+              fontWeight: 600, fontSize: '.9rem', color: 'var(--cta-text)',
+              background: 'var(--gradient-accent)', padding: '13px 26px', borderRadius: 30,
+              boxShadow: '0 4px 24px rgba(110,168,255,.35)', textDecoration: 'none',
+            }}
+            onMouseMove={e => handleMagnetic(e, 0.25)}
+            onMouseEnter={e => {
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 32px rgba(110,168,255,.5)';
+            }}
+            onMouseLeave={e => {
+              resetMagnetic(e);
+              (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 24px rgba(110,168,255,.35)';
             }}
           >
             <PlayIcon /> View Projects
@@ -137,13 +146,16 @@ export default function Hero() {
           <a
             href={CV_SRC}
             download="cv-TranVanGiaBan.pdf"
+            className="glass"
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
               fontWeight: 600, fontSize: '.9rem', color: 'var(--navy)',
-              background: 'var(--surface)', padding: '13px 26px', borderRadius: 30,
-              border: '1.5px solid var(--border)', transition: 'all .25s',
+              padding: '13px 26px', borderRadius: 30,
+              transition: 'all .25s',
               textDecoration: 'none',
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-hover)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border)'; }}
           >
             <DownloadIcon /> Download CV
           </a>
@@ -157,11 +169,23 @@ export default function Hero() {
               target={href.startsWith('http') ? '_blank' : undefined}
               rel="noreferrer"
               title={label}
+              className="glass"
               style={{
                 width: 38, height: 38, borderRadius: '50%',
-                background: 'var(--surface)', border: '1.5px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--muted)', transition: 'all .2s',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.color = 'var(--blue)';
+                el.style.borderColor = 'var(--border-hover)';
+                el.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.color = 'var(--muted)';
+                el.style.borderColor = 'var(--border)';
+                el.style.transform = 'none';
               }}
             >
               {icon}

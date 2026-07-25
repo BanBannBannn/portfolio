@@ -1,5 +1,6 @@
 'use client';
 import Reveal from './Reveal';
+import { handleSpotlight } from '../lib/interactions';
 
 const experiences = [
   {
@@ -46,7 +47,7 @@ export default function Experience() {
           03 / Experience
         </p>
         <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          Where I&apos;ve <span style={{ color: 'var(--blue)' }}>built things</span>
+          Where I&apos;ve <span className="grad-text">built things</span>
         </h2>
       </Reveal>
 
@@ -54,7 +55,7 @@ export default function Experience() {
         {/* Vertical line */}
         <div style={{
           position: 'absolute', left: 19, top: 8, bottom: 8,
-          width: 2, background: 'linear-gradient(to bottom, var(--blue), var(--blue-mid))',
+          width: 2, background: 'linear-gradient(to bottom, var(--blue), var(--purple), transparent)',
           borderRadius: 2,
         }} />
 
@@ -64,23 +65,25 @@ export default function Experience() {
               {/* Dot */}
               <div style={{
                 flexShrink: 0, width: 40, height: 40, borderRadius: '50%',
-                background: type === 'full' ? 'var(--blue)' : 'var(--navy)',
+                background: type === 'full' ? 'var(--gradient-accent)' : 'var(--surface-solid)',
+                border: type === 'full' ? 'none' : '1.5px solid var(--border)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 position: 'relative', zIndex: 1,
-                boxShadow: '0 0 0 6px var(--blue-light)',
+                boxShadow: type === 'full' ? '0 0 0 6px var(--blue-light), 0 0 24px rgba(110,168,255,.4)' : '0 0 0 6px var(--blue-light)',
               }}>
                 {type === 'full' ? <BagIcon /> : <SchoolIcon />}
               </div>
 
               {/* Card */}
               <div
+                className="glass spotlight"
                 style={{
-                  flex: 1, background: 'var(--surface)', border: '1.5px solid var(--border)',
-                  borderRadius: 14, padding: '24px 28px', transition: 'all .25s',
+                  flex: 1, borderRadius: 14, padding: '24px 28px', transition: 'all .25s',
                 }}
+                onMouseMove={handleSpotlight}
                 onMouseEnter={e => {
                   const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = 'var(--blue-mid)';
+                  el.style.borderColor = 'var(--border-hover)';
                   el.style.boxShadow = 'var(--shadow)';
                 }}
                 onMouseLeave={e => {
