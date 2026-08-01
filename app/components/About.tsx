@@ -1,77 +1,47 @@
-'use client';
+import Image from 'next/image';
 import Reveal from './Reveal';
-import Counter from './Counter';
-import { handleSpotlight } from '../lib/interactions';
-
-const stats = [
-  { num: '2+', label: 'Years experience' },
-  { num: '5+', label: 'Projects shipped' },
-  { num: '4', label: 'Frameworks mastered' },
-  { num: '3', label: 'Languages spoken' },
-];
 
 export default function About() {
   return (
-    <section id="about" style={{ padding: '100px clamp(20px,6vw,120px)' }}>
-      <Reveal>
-        <p className="font-mono" style={{ fontSize: '.72rem', fontWeight: 500, color: 'var(--blue)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
-          01 / About
-        </p>
-        <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          The engineer <span className="grad-text">behind the API</span>
-        </h2>
-      </Reveal>
+    <section id="about" className="section">
+      <div className="wrap cols">
+        <p className="eyebrow">About</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(300px,1fr))', gap: 64, alignItems: 'center' }}>
-        {/* Text */}
         <Reveal>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {[
-              <>I&apos;m a <strong>Software Engineer based in Ho Chi Minh City</strong> with nearly 2 years of hands-on experience crafting APIs that power real products — from warehouse management systems to AI-driven restaurant menus.</>,
-              <>At <strong>HANEXT Technology</strong>, I work across the full backend stack — designing REST and GraphQL APIs, building AI services with Python FastAPI, integrating vector databases for RAG pipelines, and deploying to cloud infrastructure.</>,
-              <>I care deeply about <strong>clean architecture, developer experience, and systems that don&apos;t break at 3am</strong>. When I&apos;m not writing code, I&apos;m exploring distributed systems concepts and AI backend patterns.</>,
-            ].map((text, i) => (
-              <p key={i} style={{ fontSize: '1rem', color: 'var(--muted)', lineHeight: 1.8 }}>
-                {text}
-              </p>
-            ))}
-          </div>
+          <figure className="about-figure">
+            <Image
+              src="/portrait.jpg"
+              alt="Trần Văn Gia Bân"
+              width={480}
+              height={600}
+              className="portrait"
+              priority
+            />
+            <figcaption>Thủ Đức, Ho Chi Minh City</figcaption>
+          </figure>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 32 }}>
-            {stats.map(({ num, label }) => (
-              <div key={label} className="glass spotlight" onMouseMove={handleSpotlight} style={{
-                borderRadius: 12, padding: 20,
-              }}>
-                <div className="font-display grad-text" style={{ fontSize: '2rem', fontWeight: 800, lineHeight: 1 }}>
-                  <Counter value={num} />
-                </div>
-                <div style={{ fontSize: '.8rem', color: 'var(--muted)', marginTop: 4 }}>{label}</div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-
-        {/* Avatar */}
-        <Reveal delay={150}>
-          <div className="glass" style={{
-            aspectRatio: '1', borderRadius: 20, overflow: 'hidden',
-            background: 'linear-gradient(135deg, rgba(110,168,255,.14), rgba(167,139,250,.14))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            position: 'relative', maxWidth: 360, margin: '0 auto',
-          }}>
-            <span className="font-display grad-text" style={{ fontSize: '6rem', fontWeight: 800, opacity: .5, userSelect: 'none' }}>
-              GB
-            </span>
-            <div className="glass" style={{
-              position: 'absolute', bottom: 20, right: 20,
-              borderRadius: 12, padding: '10px 16px',
-              boxShadow: 'var(--shadow)',
-              fontSize: '.78rem', fontWeight: 600, color: 'var(--navy)',
-              display: 'flex', alignItems: 'center', gap: 6,
-            }}>
-              <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green)', display: 'inline-block' }} />
-              Open to fulltime roles
-            </div>
+          <div className="prose">
+            <p>
+              I started on ASP.NET Core during my capstone — a warehouse management system that
+              had to handle real roles, real permissions and a real deploy pipeline. That project
+              taught me more about designing an API than any tutorial did.
+            </p>
+            <p>
+              At <strong>HANEXT Technology</strong> I work with whatever the project needs: Spring
+              Boot, FastAPI or NestJS on the backend, Angular or Next.js when the frontend is short
+              a pair of hands. Lately a lot of it has been retrieval work — wiring Qdrant into RAG
+              pipelines and writing agent logic in Python.
+            </p>
+            <p>
+              I pick the database to fit the problem rather than the résumé: PostgreSQL and SQL
+              Server when the data has shape, MongoDB when it doesn&apos;t, Qdrant when it needs to
+              be searched by meaning.
+            </p>
+            <p>
+              Outside work I keep a few side projects running — a games PWA, a restaurant SaaS, a
+              set of browser dev tools — mostly as an excuse to try things I don&apos;t get to try
+              at the office.
+            </p>
           </div>
         </Reveal>
       </div>

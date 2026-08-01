@@ -1,45 +1,30 @@
 import type { Metadata } from 'next';
-import Script from 'next/script';
 import './globals.css';
-import Background from './components/Background';
-import CursorGlow from './components/CursorGlow';
-import ScrollProgress from './components/ScrollProgress';
-import ThemeSwitcher from './components/ThemeSwitcher';
-
-const THEME_INIT = `
-try {
-  var t = localStorage.getItem('portfolio-theme');
-  if (t && t !== 'aurora') document.documentElement.setAttribute('data-theme', t);
-} catch (e) {}
-`;
 
 export const metadata: Metadata = {
   title: 'Trần Văn Gia Bân — Software Engineer',
-  description: 'Software Engineer with ~2 years experience building scalable APIs and AI-integrated systems. ASP.NET Core, Spring Boot, FastAPI, NestJS.',
-  keywords: ['Software Engineer', 'ASP.NET Core', 'Spring Boot', 'FastAPI', 'Vietnam'],
+  description:
+    'Backend engineer in Ho Chi Minh City. REST and GraphQL APIs in Spring Boot, FastAPI and ASP.NET Core, plus RAG pipelines in Python.',
+  keywords: ['Software Engineer', 'Backend', 'ASP.NET Core', 'Spring Boot', 'FastAPI', 'Vietnam'],
   manifest: '/manifest.json',
   openGraph: {
     title: 'Trần Văn Gia Bân — Software Engineer',
-    description: 'Crafting software that scales & systems that think.',
+    description: 'Backend engineer in Ho Chi Minh City. APIs, data models, and the plumbing behind them.',
     type: 'website',
   },
 };
 
 export const viewport = {
-  themeColor: '#06070f',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#f6f4ef' },
+    { media: '(prefers-color-scheme: dark)', color: '#14120e' },
+  ],
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>
-        <Script id="theme-init" strategy="beforeInteractive">{THEME_INIT}</Script>
-        <Background />
-        <CursorGlow />
-        <ScrollProgress />
-        {children}
-        <ThemeSwitcher />
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

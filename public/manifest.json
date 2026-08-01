@@ -1,11 +1,11 @@
 {
-  "name": "Gia Bân - Portfolio",
-  "short_name": "Portfolio",
-  "description": "Trần Văn Gia Bân - Software Engineer",
+  "name": "Trần Văn Gia Bân — Software Engineer",
+  "short_name": "Gia Bân",
+  "description": "Backend engineer in Ho Chi Minh City. APIs, data models, and the plumbing behind them.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#06070f",
-  "theme_color": "#06070f",
+  "background_color": "#f6f4ef",
+  "theme_color": "#f6f4ef",
   "icons": [
     {
       "src": "/icon.svg",

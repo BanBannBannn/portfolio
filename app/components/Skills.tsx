@@ -1,91 +1,33 @@
-'use client';
 import Reveal from './Reveal';
-import { handleSpotlight } from '../lib/interactions';
 
-const skillGroups = [
-  { icon: '⚡', title: 'Languages',          tags: ['C#', 'Java', 'Python', 'JavaScript', 'TypeScript'] },
-  { icon: '🔧', title: 'Frameworks & APIs',  tags: ['ASP.NET Core', 'Spring Boot', 'FastAPI', 'NestJS', 'Next.js', 'REST', 'GraphQL'] },
-  { icon: '🗄️', title: 'Databases',          tags: ['SQL Server', 'PostgreSQL', 'MongoDB', 'QdrantDB'] },
-  { icon: '☁️', title: 'Cloud & Services',   tags: ['Azure', 'AWS S3', 'AWS Rekognition', 'Firebase', 'Supabase'] },
-  { icon: '🤖', title: 'AI & ML Integration',tags: ['RAG Pipeline', 'Agent-based Logic', 'Vector DB', 'LLM Integration'] },
-  { icon: '🛠️', title: 'Tools & Practices',  tags: ['Git / GitHub', 'GitLab', 'CI/CD', 'JWT', 'EF Core'] },
+const groups: [string, string[]][] = [
+  ['Languages', ['C#', 'Java', 'Python', 'TypeScript', 'JavaScript']],
+  ['Backend', ['ASP.NET Core', 'Spring Boot', 'FastAPI', 'NestJS', 'REST', 'GraphQL']],
+  ['Data', ['PostgreSQL', 'SQL Server', 'MongoDB', 'Qdrant', 'EF Core']],
+  ['Cloud', ['Azure', 'AWS S3', 'AWS Rekognition', 'Firebase', 'Supabase']],
+  ['AI work', ['RAG pipelines', 'agent logic', 'vector search', 'LLM integration']],
+  ['Frontend', ['Next.js', 'React', 'Angular']],
+  ['Practice', ['Git & code review', 'CI/CD', 'JWT auth', 'API design']],
 ];
-
-function Tag({ label }: { label: string }) {
-  return (
-    <span
-      className="font-mono"
-      style={{
-        fontSize: '.72rem', color: 'var(--blue)',
-        background: 'var(--tag-bg)', padding: '4px 10px',
-        borderRadius: 6, border: '1px solid var(--blue-mid)',
-        transition: 'all .15s', cursor: 'default',
-        display: 'inline-block',
-      }}
-      onMouseEnter={e => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = 'var(--gradient-accent)';
-        el.style.color = 'var(--cta-text)';
-        el.style.borderColor = 'transparent';
-      }}
-      onMouseLeave={e => {
-        const el = e.currentTarget as HTMLElement;
-        el.style.background = 'var(--tag-bg)';
-        el.style.color = 'var(--blue)';
-        el.style.borderColor = 'var(--blue-mid)';
-      }}
-    >
-      {label}
-    </span>
-  );
-}
 
 export default function Skills() {
   return (
-    <section id="skills" style={{ padding: '100px clamp(20px,6vw,120px)', background: 'var(--surface)' }}>
-      <Reveal>
-        <p className="font-mono" style={{ fontSize: '.72rem', fontWeight: 500, color: 'var(--blue)', letterSpacing: 2, textTransform: 'uppercase', marginBottom: 10 }}>
-          02 / Skills
-        </p>
-        <h2 className="font-display" style={{ fontSize: 'clamp(1.8rem,3.5vw,2.4rem)', fontWeight: 800, color: 'var(--navy)', letterSpacing: '-1px', marginBottom: 48, lineHeight: 1.15 }}>
-          My <span className="grad-text">technical toolkit</span>
-        </h2>
-      </Reveal>
+    <section id="skills" className="section">
+      <div className="wrap cols">
+        <p className="eyebrow">Toolkit</p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
-        {skillGroups.map(({ icon, title, tags }, i) => (
-          <Reveal key={title} delay={i * 60}>
-            <div
-              className="glass spotlight"
-              style={{
-                borderRadius: 14, padding: 24, transition: 'all .25s', height: '100%',
-              }}
-              onMouseMove={handleSpotlight}
-              onMouseEnter={e => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.borderColor = 'var(--border-hover)';
-                el.style.boxShadow = 'var(--shadow-hover)';
-                el.style.transform = 'translateY(-2px)';
-              }}
-              onMouseLeave={e => {
-                const el = e.currentTarget as HTMLElement;
-                el.style.borderColor = 'var(--border)';
-                el.style.boxShadow = 'none';
-                el.style.transform = 'none';
-              }}
-            >
-              <div style={{ width:40, height:40, borderRadius:10, background:'var(--blue-light)', display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14, fontSize:'1.2rem' }}>
-                {icon}
+        <Reveal>
+          <div className="rows">
+            {groups.map(([title, items]) => (
+              <div key={title} className="row">
+                <div className="row-meta">{title}</div>
+                <div className="meta" style={{ fontSize: '.88rem', color: 'var(--ink-2)', paddingTop: '.3em' }}>
+                  {items.join('  ·  ')}
+                </div>
               </div>
-              <div className="font-display" style={{ fontWeight: 700, fontSize: '.95rem', color: 'var(--navy)', marginBottom: 14 }}>
-                {title}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {tags.map(t => <Tag key={t} label={t} />)}
-              </div>
-            </div>
-          </Reveal>
-        ))}
+            ))}
+          </div>
+        </Reveal>
       </div>
     </section>
   );
