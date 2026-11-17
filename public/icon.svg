@@ -1,4 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#f6f4ef" />
-  <text x="50%" y="54%" font-family="Georgia, 'Times New Roman', serif" font-size="340" fill="#a03718" text-anchor="middle" dominant-baseline="middle">B</text>
+  <rect width="512" height="512" fill="#111113" />
+  <g transform="translate(256 256) scale(0.78) translate(-257 -256)">
+    <rect x="152" y="104" width="48" height="304" fill="#fbfbfa" />
+    <path d="M176 128H262a64 64 0 0 1 0 128H176M176 256H274a64 64 0 0 1 0 128H176" stroke="#fbfbfa" stroke-width="48" fill="none" />
+  </g>
 </svg>

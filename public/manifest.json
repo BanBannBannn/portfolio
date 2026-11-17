@@ -1,17 +1,14 @@
 {
-  "name": "Trần Văn Gia Bân — Software Engineer",
+  "name": "Trần Văn Gia Bân — Backend Engineer",
   "short_name": "Gia Bân",
-  "description": "Backend engineer in Ho Chi Minh City. APIs, data models, and the plumbing behind them.",
+  "description": "Backend engineer in Ho Chi Minh City. APIs in Spring Boot, ASP.NET Core, FastAPI and NestJS; RAG pipelines with Qdrant and Python.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f6f4ef",
-  "theme_color": "#f6f4ef",
+  "background_color": "#fbfbfa",
+  "theme_color": "#fbfbfa",
   "icons": [
-    {
-      "src": "/icon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
   ]
 }

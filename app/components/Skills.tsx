@@ -1,33 +1,27 @@
-import Reveal from './Reveal';
-
-const groups: [string, string[]][] = [
-  ['Languages', ['C#', 'Java', 'Python', 'TypeScript', 'JavaScript']],
-  ['Backend', ['ASP.NET Core', 'Spring Boot', 'FastAPI', 'NestJS', 'REST', 'GraphQL']],
-  ['Data', ['PostgreSQL', 'SQL Server', 'MongoDB', 'Qdrant', 'EF Core']],
-  ['Cloud', ['Azure', 'AWS S3', 'AWS Rekognition', 'Firebase', 'Supabase']],
-  ['AI work', ['RAG pipelines', 'agent logic', 'vector search', 'LLM integration']],
-  ['Frontend', ['Next.js', 'React', 'Angular']],
-  ['Practice', ['Git & code review', 'CI/CD', 'JWT auth', 'API design']],
+const groups: [string, string][] = [
+  ['Languages', 'Java, C#, Python, TypeScript'],
+  ['Backend', 'Spring Boot, ASP.NET Core, FastAPI, NestJS, REST, GraphQL'],
+  ['Data', 'PostgreSQL, SQL Server, MongoDB, Qdrant, EF Core'],
+  ['AI', 'RAG pipelines, agent logic, vector search, LLM integration'],
+  ['Cloud', 'Azure, AWS (S3, Rekognition), Supabase, Firebase'],
+  ['Frontend', 'Next.js, React, Angular'],
+  ['Practice', 'API design, JWT auth, CI/CD, Git and code review'],
 ];
 
 export default function Skills() {
   return (
-    <section id="skills" className="section">
-      <div className="wrap cols">
-        <p className="eyebrow">Toolkit</p>
+    <section id="skills" className="section" aria-labelledby="skills-h">
+      <div className="wrap section-inner">
+        <h2 className="h2" id="skills-h">Skills</h2>
 
-        <Reveal>
-          <div className="rows">
-            {groups.map(([title, items]) => (
-              <div key={title} className="row">
-                <div className="row-meta">{title}</div>
-                <div className="meta" style={{ fontSize: '.88rem', color: 'var(--ink-2)', paddingTop: '.3em' }}>
-                  {items.join('  ·  ')}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Reveal>
+        <dl className="skills">
+          {groups.map(([k, v]) => (
+            <div key={k} className="skill">
+              <dt>{k}</dt>
+              <dd>{v}</dd>
+            </div>
+          ))}
+        </dl>
       </div>
     </section>
   );

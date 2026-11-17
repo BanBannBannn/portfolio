@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#f6f4ef" />
-  <text x="50%" y="54%" font-family="Georgia, 'Times New Roman', serif" font-size="340" fill="#a03718" text-anchor="middle" dominant-baseline="middle">B</text>
+  <style>
+    .bg { fill: #111113; }
+    .fg { stroke: #fbfbfa; fill: none; stroke-width: 48; }
+    .stem { fill: #fbfbfa; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #f4f4f5; }
+      .fg { stroke: #111113; }
+      .stem { fill: #111113; }
+    }
+  </style>
+  <rect class="bg" width="512" height="512" rx="112" />
+  <rect class="stem" x="152" y="104" width="48" height="304" />
+  <path class="fg" d="M176 128H262a64 64 0 0 1 0 128H176" />
+  <path class="fg" d="M176 256H274a64 64 0 0 1 0 128H176" />
 </svg>
