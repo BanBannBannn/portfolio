@@ -136,20 +136,20 @@ export async function recordTrace(t: Trace) {
   if (t.costUsd) addSpend(t.costUsd);
   if (!hasStore()) return;
 
+  // The first limited request in each 30s window is written (so it shows in the
+  // list); the rest are only counted, and folded into the next write of any kind.
   if (t.outcome === 'rate_limited') {
     pendingLimited++;
     if (Date.now() - lastLimitedFlush < LIMITED_FLUSH_MS) return;
+    lastLimitedFlush = Date.now();
     counts.requests = pendingLimited;
     counts.rate_limited = pendingLimited;
-  }
-  // Fold limited requests seen since the last write into this one.
-  if (t.outcome !== 'rate_limited' && pendingLimited > 0) {
+  } else if (pendingLimited > 0) {
     counts.requests += pendingLimited;
     counts.rate_limited = (counts.rate_limited ?? 0) + pendingLimited;
   }
   const flushed = pendingLimited;
   pendingLimited = 0;
-  lastLimitedFlush = Date.now();
 
   const d = new Date(t.at);
   const day = `chat:d:${dayKey(d)}`;

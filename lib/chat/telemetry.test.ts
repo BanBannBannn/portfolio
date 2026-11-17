@@ -118,6 +118,14 @@ describe('with a store', () => {
     expect(d.days[0].t).toMatchObject({ requests: 52, rate_limited: 51, answered: 1 });
   });
 
+  it('a lone limited request right after a normal one still shows in the list', async () => {
+    useStore();
+    await recordTrace(trace());
+    await recordTrace(trace({ outcome: 'rate_limited', status: 429, tokens: undefined, costUsd: undefined }));
+    const d = await readDashboard(1);
+    expect(d.traces.map(x => x.outcome)).toEqual(['rate_limited', 'answered']);
+  });
+
   it('never throws when the store is down', async () => {
     useStore();
     store.setDown(true);
