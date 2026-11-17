@@ -44,6 +44,9 @@ typography:
   micro:
     fontFamily: "Be Vietnam Pro, system-ui, sans-serif"
     fontSize: "0.8125rem"
+  caption:
+    fontFamily: "Be Vietnam Pro, system-ui, sans-serif"
+    fontSize: "0.75rem"
 rounded:
   focus: "4px"
   button: "8px"

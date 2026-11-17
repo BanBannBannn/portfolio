@@ -69,8 +69,10 @@ Sửa file xong thì restart `npm run dev` hoặc deploy lại. File được đ
 | Muốn đổi | Sửa ở đâu |
 |---|---|
 | Quy tắc trả lời (giọng văn, độ dài, ngôn ngữ) | hằng `SYSTEM` trong `app/api/chat/route.ts` |
-| Số câu hỏi tối đa mỗi IP mỗi giờ (mặc định 20) | `perVisitor` trong `app/api/chat/route.ts` |
-| Độ dài câu hỏi / số lượt một cuộc chat | `MAX_QUESTION_CHARS`, `MAX_TURNS` (route) và `MAX_QUESTION`, `MAX_TURNS` (`app/components/Chat.tsx`). Hai bên phải khớp nhau. |
+| Giới hạn lượt hỏi theo thiết bị / IP / server | bảng `LIMITS` trong `app/api/chat/route.ts` (xem mục 7) |
+| Độ dài câu hỏi (300 ký tự) / số câu một cuộc chat (6) | `MAX_QUESTION_CHARS`, `MAX_QUESTIONS` (route) và `MAX_QUESTION`, `MAX_QUESTIONS` (`app/components/Chat.tsx`). Hai bên phải khớp nhau. |
+| Độ dài câu trả lời | `MAX_OUTPUT_TOKENS` (1024) trong route, và câu "Keep answers under about 120 words" trong `SYSTEM` |
+| Email, số điện thoại, LinkedIn trên thẻ liên hệ | `EMAIL`, `PHONE`, `LINKEDIN` trong `app/components/Chat.tsx` |
 | Câu hỏi gợi ý | `SUGGESTIONS` trong `app/components/Chat.tsx` |
 | Chữ trên nút, lời nhắc trong khung chat | `app/components/Chat.tsx` |
 | Model | `MODEL` trong route. Haiku 5.5 là rẻ nhất. Sonnet/Opus thông minh hơn nhưng đắt hơn 20–40 lần. |
@@ -98,10 +100,27 @@ không lưu gì phía server, AI không có tool nào để thao tác (chỉ tr�
 | Giả mạo lịch sử chat | Server ký HMAC lên từng câu trả lời; sửa bất kỳ câu nào trong lịch sử là bị từ chối (400). |
 | XSS | Câu trả lời hiển thị dưới dạng chữ thuần, không bao giờ render HTML. Đã test với payload `<img onerror>`. |
 | CSRF / site khác gọi API | Kiểm tra `Origin` và bắt buộc `Content-Type: application/json`. |
-| Spam / đốt tiền | 20 request/giờ/IP, 300 request/giờ mỗi server, câu hỏi ≤ 500 ký tự, ≤ 12 lượt mỗi cuộc chat, body ≤ 64 KB, ngắt gọi AI khi người dùng đóng chat. **Chốt chặn thật sự là spend limit trong Console.** |
+| Spam / đốt tiền | Giới hạn nhiều lớp (bảng dưới), câu hỏi ≤ 300 ký tự, ≤ 6 câu mỗi cuộc chat, câu trả lời ≤ 1024 token, body ≤ 120 KB, ngắt gọi AI khi người dùng đóng chat. **Chốt chặn thật sự là spend limit trong Console.** |
 | Clickjacking | Header `frame-ancestors 'none'` và `X-Frame-Options: DENY`. |
 | Dependency có lỗ hổng | Next.js đã nâng lên 16.4.6; `npm audit` báo 0 lỗ hổng. Thỉnh thoảng chạy lại `npm audit`. |
 | IDOR, SQL injection, path traversal | Không áp dụng: không có ID, không có database, đường dẫn file là cố định. |
+
+### Giới hạn lượt hỏi
+
+Mỗi trình duyệt được nhận một cookie `chat_device` có chữ ký HMAC (HttpOnly, SameSite=Strict, chỉ gửi kèm `/api/chat`).
+Sửa cookie thì chữ ký sai, server coi như thiết bị mới. Ai xoá cookie liên tục thì vẫn bị giới hạn theo IP.
+
+| Theo | Ngắn hạn ("đợi chút") | Mỗi giờ | Mỗi ngày |
+|---|---|---|---|
+| Thiết bị (cookie) | 1 câu / 2 giây | 15 | 30 |
+| IP | 3 câu / 10 giây | 30 | 60 |
+| Cả server (mỗi instance) | | 300 | 1500 |
+
+- Giới hạn IP rộng hơn vì cả văn phòng, hoặc nhiều người dùng chung nhà mạng di động, có thể ra Internet bằng cùng một IP.
+- Request bị từ chối **không** bị tính lượt, nên người hỏi bình thường không mất lượt oan.
+- Request sai định dạng vẫn bị tính lượt, để script spam không né được giới hạn.
+- Vượt giới hạn ngắn hạn: khung chat báo "đợi chút" và giữ nguyên câu đã gõ.
+  Vượt giới hạn giờ/ngày, hoặc hỏi đủ 6 câu: khung chat thay ô nhập bằng thẻ liên hệ (Email / Gọi / LinkedIn).
 
 **Giới hạn còn lại:** bộ đếm lượt nằm trong RAM của từng server, người đổi IP liên tục vẫn né được.
 Nếu bị spam thật thì bật thêm rate limit ở **Vercel → Firewall** (tuỳ gói), và spend limit luôn chặn được chi phí.
