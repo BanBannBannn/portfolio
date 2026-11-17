@@ -1,18 +1,22 @@
-import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream';
 import { after } from 'next/server';
 import { createRateLimiter } from '../../../lib/rate-limit';
 import { getConfig, type ChatConfig } from '../../../lib/chat/config';
-import { costUsd, getSpend, pseudonym, recordTrace, type Trace } from '../../../lib/chat/telemetry';
+import { CONTACT_TOOL, mailConfig, signDraft, TOOL_NAME, TOOL_PROMPT, validateDraft } from '../../../lib/chat/contact';
+import { clientIp, device, hmac, isJson, json, safeEqual, sameOrigin, SECURITY_HEADERS } from '../../../lib/chat/security';
+import { costUsd, getSpend, pseudonym, recordTrace, type Tokens, type Trace } from '../../../lib/chat/telemetry';
 
 export const maxDuration = 30;
 
 // Limits, model and budget live in lib/chat/config.ts (env vars + /admin).
 /** Separates the answer text from its signature at the end of the stream. */
 const SIG_MARK = '\u001e';
-const DEVICE_COOKIE = 'chat_device';
+/** Precedes a drafted message (JSON) after the answer text, when the model drafted one. */
+const DRAFT_MARK = '\u001d';
 const CONTACT = 'tranvangiaban@gmail.com';
 
 // Loaded once per instance. Edit content/profile.md to change what the bot knows.
@@ -80,40 +84,6 @@ function getClient() {
   return client;
 }
 
-/** One secret for every signature here, derived from the API key: nothing extra to configure. */
-function hmac(purpose: string, data: string) {
-  const key = createHmac('sha256', process.env.ANTHROPIC_API_KEY!).update('portfolio-chat').digest();
-  return createHmac('sha256', key).update(`${purpose}\n${data}`).digest('base64url');
-}
-
-function safeEqual(a: string, b: string) {
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  return x.length === y.length && timingSafeEqual(x, y);
-}
-
-/** Reads the signed device cookie, or issues a new device id. */
-function device(req: Request): { id: string; cookie?: string } {
-  const raw = req.headers
-    .get('cookie')
-    ?.split(';')
-    .map(c => c.trim())
-    .find(c => c.startsWith(`${DEVICE_COOKIE}=`))
-    ?.slice(DEVICE_COOKIE.length + 1);
-
-  if (raw && raw.length < 200) {
-    const [id, mac] = raw.split('.');
-    if (id && mac && safeEqual(mac, hmac('device', id))) return { id };
-  }
-
-  const id = randomUUID();
-  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  return {
-    id,
-    cookie: `${DEVICE_COOKIE}=${id}.${hmac('device', id)}; Path=/api/chat; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=Strict${secure}`,
-  };
-}
-
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 /**
@@ -136,7 +106,7 @@ function parseTurns(raw: unknown, c: ChatConfig): Turn[] | 'too_long' | 'too_man
     if (m?.role !== expected || typeof m.content !== 'string') return null;
 
     const content = m.content.trim();
-    if (!content || content.includes(SIG_MARK)) return null;
+    if (!content || content.includes(SIG_MARK) || content.includes(DRAFT_MARK)) return null;
     if (expected === 'user' && content.length > c.maxQuestionChars) return 'too_long';
     if (expected === 'assistant' && content.length > answerChars) return null;
 
@@ -144,25 +114,6 @@ function parseTurns(raw: unknown, c: ChatConfig): Turn[] | 'too_long' | 'too_man
   }
   // Must end on the visitor's question.
   return turns[turns.length - 1].role === 'user' ? turns : null;
-}
-
-/** On Vercel these headers are set by the platform edge, not by the client. */
-function clientIp(req: Request) {
-  return (
-    req.headers.get('x-real-ip') ??
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    'unknown'
-  );
-}
-
-function sameOrigin(req: Request) {
-  const origin = req.headers.get('origin');
-  if (!origin) return true; // not a browser cross-site request; rate limits still apply
-  try {
-    return new URL(origin).host === req.headers.get('host');
-  } catch {
-    return false; // "null" (sandboxed iframes, file://) or garbage
-  }
 }
 
 /** Why the chat isn't answering right now, if it isn't. */
@@ -186,12 +137,6 @@ function schedule(task: () => Promise<void>) {
   }
 }
 
-const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' };
-
-function json(status: number, data: Record<string, unknown>, headers?: Record<string, string>) {
-  return Response.json(data, { status, headers: { ...SECURITY_HEADERS, ...headers } });
-}
-
 /** What the chat UI needs to know before the first question. */
 export async function GET() {
   const c = await getConfig();
@@ -203,6 +148,9 @@ export async function GET() {
     logContent: c.logContent,
   });
 }
+
+/** At most one model call that may use a tool, then one to finish the reply. */
+const MAX_ROUNDS = 2;
 
 export async function POST(req: Request) {
   const started = performance.now();
@@ -217,13 +165,7 @@ export async function POST(req: Request) {
   };
 
   if (!sameOrigin(req)) return done(json(403, { error: 'forbidden' }), 'rejected', 'forbidden');
-
-  // Requiring JSON makes any cross-site browser request a CORS preflight,
-  // which this route never answers, so other sites cannot call it via a visitor.
-  if (!req.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
-    return done(json(415, { error: 'unsupported_media_type' }), 'rejected', 'unsupported_media_type');
-  }
-
+  if (!isJson(req)) return done(json(415, { error: 'unsupported_media_type' }), 'rejected', 'unsupported_media_type');
   if (!process.env.ANTHROPIC_API_KEY) return json(503, { error: 'not_configured' });
 
   const config = await getConfig();
@@ -288,17 +230,11 @@ export async function POST(req: Request) {
   trace.chars = question.length;
   if (config.logContent) trace.q = question;
 
-  const stream = getClient().messages.stream(
-    {
-      model: config.model,
-      max_tokens: config.maxOutputTokens,
-      output_config: { effort: config.effort },
-      // The system prompt is identical on every request, so cache it.
-      system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-      messages: turns,
-    },
-    { signal: req.signal },
-  );
+  const toolsOn = config.contactTool && mailConfig() !== null;
+  const system: Anthropic.TextBlockParam[] = [
+    { type: 'text', text: toolsOn ? `${SYSTEM}\n${TOOL_PROMPT}` : SYSTEM, cache_control: { type: 'ephemeral' } },
+  ];
+  const messages: Anthropic.MessageParam[] = turns.map(t => ({ role: t.role, content: t.content }));
 
   // Record once the stream has finished, whichever way it ends.
   let finish!: () => void;
@@ -308,13 +244,24 @@ export async function POST(req: Request) {
     await recordTrace(trace);
   });
 
+  let current: MessageStream | null = null;
   const encoder = new TextEncoder();
   const body$ = new ReadableStream<Uint8Array>({
     async start(controller) {
       let answer = '';
+      let gapPending = false; // a paragraph break between text before and after a tool call
+      let draft: (ReturnType<typeof validateDraft> & { ok: true })['draft'] | null = null;
+      let draftToken = '';
+      const usage: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+
       const emit = (s: string) => {
-        const clean = s.replaceAll(SIG_MARK, '');
-        if (clean && trace.ttftMs === undefined) trace.ttftMs = Math.round(performance.now() - started);
+        let clean = s.replaceAll(SIG_MARK, '').replaceAll(DRAFT_MARK, '');
+        if (!clean) return;
+        if (gapPending) {
+          clean = `\n\n${clean.trimStart()}`;
+          gapPending = false;
+        }
+        if (trace.ttftMs === undefined) trace.ttftMs = Math.round(performance.now() - started);
         answer += clean;
         controller.enqueue(encoder.encode(clean));
       };
@@ -322,31 +269,78 @@ export async function POST(req: Request) {
       trace.status = 200;
 
       try {
-        for await (const event of stream) {
-          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-            emit(event.delta.text);
+        for (let round = 0; round < MAX_ROUNDS; round++) {
+          current = getClient().messages.stream(
+            {
+              model: config.model,
+              max_tokens: config.maxOutputTokens,
+              output_config: { effort: config.effort },
+              // The system prompt is identical on every request, so cache it.
+              system,
+              messages,
+              // The second round only finishes the reply: no more tool calls.
+              ...(toolsOn ? { tools: [CONTACT_TOOL], tool_choice: { type: round === 0 ? 'auto' : 'none' } } : {}),
+            },
+            { signal: req.signal },
+          );
+          for await (const event of current) {
+            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') emit(event.delta.text);
           }
-        }
-        const final = await stream.finalMessage();
-        const u = final.usage;
-        trace.tokens = {
-          input: u.input_tokens,
-          output: u.output_tokens,
-          cacheRead: u.cache_read_input_tokens ?? 0,
-          cacheWrite: u.cache_creation_input_tokens ?? 0,
-        };
-        trace.costUsd = costUsd(config.model, trace.tokens);
-        trace.stopReason = final.stop_reason ?? undefined;
-        trace.requestId = stream.request_id ?? undefined;
+          const final = await current.finalMessage();
+          const u = final.usage;
+          usage.input += u.input_tokens;
+          usage.output += u.output_tokens;
+          usage.cacheRead += u.cache_read_input_tokens ?? 0;
+          usage.cacheWrite += u.cache_creation_input_tokens ?? 0;
+          trace.stopReason = final.stop_reason ?? undefined;
+          trace.requestId = current.request_id ?? undefined;
 
-        if (final.stop_reason === 'refusal' || !answer) {
+          // Only a turn that ended *because of* a tool call runs it. A turn cut off
+          // by max_tokens or a refusal may hold a half-written call: never run that.
+          if (final.stop_reason !== 'tool_use' || round === MAX_ROUNDS - 1) break;
+
+          const results: Anthropic.ToolResultBlockParam[] = [];
+          for (const block of final.content) {
+            if (block.type !== 'tool_use') continue;
+            trace.tools = [...(trace.tools ?? []), block.name];
+            const fail = (msg: string) => results.push({ type: 'tool_result', tool_use_id: block.id, is_error: true, content: msg });
+            if (block.name !== TOOL_NAME) { fail(`Unknown tool ${block.name}.`); continue; }
+            if (draft) { fail('Only one draft per reply. The first draft is already shown to the visitor.'); continue; }
+            const v = validateDraft(block.input);
+            if (!v.ok) { trace.reason = 'draft_invalid'; fail(v.error); continue; }
+            draft = v.draft;
+            draftToken = signDraft(v.draft, dev.id);
+            results.push({
+              type: 'tool_result',
+              tool_use_id: block.id,
+              content:
+                'Draft created and shown to the visitor with a Send button. It has NOT been sent. ' +
+                'In one short sentence, ask them to check it and press Send, or tell you what to change.',
+            });
+          }
+          // Pass the assistant turn back unchanged (thinking blocks included), then the results.
+          messages.push({ role: 'assistant', content: final.content }, { role: 'user', content: results });
+          if (answer) gapPending = true;
+        }
+
+        trace.tokens = usage;
+        trace.costUsd = costUsd(config.model, usage);
+        if (trace.stopReason === 'refusal') {
           trace.outcome = 'refused';
           emit((answer ? '\n\n' : '') + `I can't help with that one. For anything else, email Bân at ${CONTACT}.`);
-        } else if (final.stop_reason === 'max_tokens') {
+        } else if (!answer && draft) {
+          emit('Here is your message to Bân. Check it below and press Send, or tell me what to change.');
+        } else if (!answer) {
+          trace.outcome = 'refused';
+          emit(`I can't help with that one. For anything else, email Bân at ${CONTACT}.`);
+        } else if (trace.stopReason === 'max_tokens') {
           emit('…');
         }
       } catch (err) {
-        trace.requestId = stream.request_id ?? undefined;
+        if (usage.output) {
+          trace.tokens = usage;
+          trace.costUsd = costUsd(config.model, usage);
+        }
         if (req.signal.aborted) {
           trace.outcome = 'aborted';
           trace.durationMs = Math.round(performance.now() - started);
@@ -358,10 +352,14 @@ export async function POST(req: Request) {
         // Log status only: never the visitor's text, never anything credential-like.
         console.error('[chat]', err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : 'stream failed');
         emit((answer ? '\n\n' : '') + `Sorry, the assistant is unavailable right now. You can email Bân at ${CONTACT}.`);
+        draft = null; // don't offer a draft from a reply that failed
       }
 
       const signed = answer.trim();
       if (config.logContent) trace.a = signed.slice(0, 2_000);
+      if (draft) {
+        controller.enqueue(encoder.encode(DRAFT_MARK + JSON.stringify({ token: draftToken, ...draft })));
+      }
       if (signed && signed.length <= caps(config).answerChars) {
         controller.enqueue(encoder.encode(SIG_MARK + signHistory([...turns, { role: 'assistant', content: signed }])));
       }
@@ -370,7 +368,7 @@ export async function POST(req: Request) {
       finish();
     },
     cancel() {
-      stream.abort();
+      current?.abort();
       trace.outcome = 'aborted';
       trace.durationMs = Math.round(performance.now() - started);
       finish();

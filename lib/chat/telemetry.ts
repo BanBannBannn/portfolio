@@ -19,7 +19,9 @@ export type Outcome =
   | 'aborted'       // the visitor closed the chat mid-answer
   | 'rate_limited'  // a 429 from our own limits
   | 'rejected'      // a malformed or forged request (4xx)
-  | 'paused';       // chat disabled or over budget
+  | 'paused'        // chat disabled or over budget
+  | 'mail_sent'     // the visitor sent a drafted message to Bân
+  | 'mail_failed';  // the mail provider refused or was unreachable
 
 export type Tokens = { input: number; output: number; cacheRead: number; cacheWrite: number };
 
@@ -40,7 +42,8 @@ export type Trace = {
   ttftMs?: number;         // request start → first answer text
   durationMs: number;      // request start → last byte
   stopReason?: string;
-  requestId?: string;      // Anthropic request id, for support tickets
+  requestId?: string;      // Anthropic request id (or mail provider id), for support tickets
+  tools?: string[];        // tools the model called, or 'send_mail'
   q?: string;              // question, only with "Save questions and answers"
   a?: string;              // answer, likewise
 };

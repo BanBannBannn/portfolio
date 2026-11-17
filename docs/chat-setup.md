@@ -88,9 +88,9 @@ Nếu AI vẫn bịa ở câu nào, bổ sung thông tin đó vào profile, kể
 
 ## 7. Bảo mật: đã có sẵn những gì
 
-Site có một API công khai là `/api/chat` (`POST` để hỏi, `GET` để lấy cấu hình hiển thị), cùng trang `/admin` có mật khẩu.
+Site có một API công khai là `/api/chat` (`POST` để hỏi, `GET` để lấy cấu hình hiển thị), `POST /api/chat/send` (gửi tin nhắn khách đã xác nhận, xem `docs/contact-tool-report.md`), cùng trang `/admin` có mật khẩu.
 Khách không cần đăng nhập. Server chỉ lưu số liệu và cấu hình (mục 8), câu hỏi chỉ được lưu khi bạn bật `CHAT_LOG_CONTENT`.
-AI không có tool nào để thao tác, chỉ trả lời bằng chữ.
+AI chỉ có một tool: **soạn** tin nhắn gửi Bân. Tool này không gửi được gì; khách phải tự bấm Send (chi tiết và 16 mối đe doạ đã xử lý: `docs/contact-tool-report.md`).
 
 | Rủi ro | Cách xử lý |
 |---|---|
@@ -188,6 +188,8 @@ Số ngoài khoảng cho phép thì bị kéo về giới hạn gần nhất. Da
 | `CHAT_DEVICE_PER_HOUR` / `_PER_DAY` | `15` / `30` | Giới hạn theo thiết bị. |
 | `CHAT_IP_PER_HOUR` / `_PER_DAY` | `30` / `60` | Giới hạn theo IP. |
 | `CHAT_GLOBAL_PER_HOUR` / `_PER_DAY` | `300` / `1500` | Giới hạn toàn site (tính trên mỗi server instance). |
+| `CHAT_CONTACT_TOOL` | `true` | Cho AI soạn tin nhắn gửi Bân (cần `RESEND_API_KEY`, `CONTACT_TO_EMAIL`). |
+| `CHAT_MAIL_PER_DAY` | `20` | Số tin nhắn tối đa mỗi ngày toàn site (thêm 2/thiết bị, 3/IP). |
 | `CHAT_DAILY_BUDGET_USD` | `0.5` | Chi phí ước tính trong ngày (UTC) chạm mức này thì chat tạm nghỉ tới 0h UTC (7h sáng giờ VN). `0` = không giới hạn. |
 | `CHAT_MONTHLY_BUDGET_USD` | `5` | Tương tự, theo tháng. |
 | `ADMIN_PASSWORD` | (trống) | Bật trang `/admin`. |

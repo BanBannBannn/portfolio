@@ -26,7 +26,12 @@ export async function startFakeUpstash(token = 'test-token') {
     };
     switch (name.toUpperCase()) {
       case 'GET': { const v = db.get(key); return typeof v === 'string' ? v : null; }
-      case 'SET': db.set(key, args[0]); return 'OK';
+      case 'SET': {
+        if (args.some(a => a.toUpperCase() === 'NX') && db.has(key)) return null;
+        db.set(key, args[0]);
+        return 'OK';
+      }
+      case 'INCR': { const n = Number(typeof db.get(key) === 'string' ? db.get(key) : 0) + 1; db.set(key, String(n)); return n; }
       case 'DEL': return db.delete(key) ? 1 : 0;
       case 'EXPIRE': return db.has(key) ? 1 : 0;
       case 'LPUSH': { const l = list(); l.unshift(...args.reverse()); return l.length; }

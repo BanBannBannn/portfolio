@@ -11,17 +11,26 @@ const SIG_MARK = '\u001e';
 
 // ---- stand-in Messages API --------------------------------------------------
 
-type Reply = { status?: number; parts?: string[]; stopReason?: string };
+type Reply = { status?: number; parts?: string[]; stopReason?: string; tools?: { name: string; input: unknown }[] };
 let reply: Reply = {};
-let lastRequest: { model: string; max_tokens: number; system: unknown; messages: unknown[] } | null = null;
+let queue: Reply[] = []; // per-call replies, used before `reply`
+type ApiRequest = {
+  model: string; max_tokens: number; system: { text: string }[]; messages: { role: string; content: unknown }[];
+  tools?: { name: string; strict?: boolean }[]; tool_choice?: { type: string };
+};
+let lastRequest: ApiRequest | null = null;
+let requests: ApiRequest[] = [];
 let apiCalls = 0;
 
+const globalReply = () => reply;
 const api = http.createServer((req, res) => {
   let raw = '';
   req.on('data', c => (raw += c));
   req.on('end', () => {
     apiCalls++;
     lastRequest = JSON.parse(raw);
+    requests.push(lastRequest!);
+    const reply = queue.shift() ?? globalReply();
     if (reply.status && reply.status !== 200) {
       res.writeHead(reply.status, { 'content-type': 'application/json', 'x-should-retry': 'false' });
       return res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'boom' } }));
@@ -39,7 +48,13 @@ const api = http.createServer((req, res) => {
       ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text } });
     }
     ev('content_block_stop', { index: 0 });
-    ev('message_delta', { delta: { stop_reason: reply.stopReason ?? 'end_turn', stop_sequence: null }, usage: { output_tokens: 12 } });
+    (reply.tools ?? []).forEach((t, i) => {
+      ev('content_block_start', { index: i + 1, content_block: { type: 'tool_use', id: `toolu_${i}`, name: t.name, input: {} } });
+      ev('content_block_delta', { index: i + 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) } });
+      ev('content_block_stop', { index: i + 1 });
+    });
+    const stop = reply.stopReason ?? (reply.tools?.length ? 'tool_use' : 'end_turn');
+    ev('message_delta', { delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 12 } });
     ev('message_stop', {});
     res.end();
   });
@@ -61,6 +76,8 @@ let clock = Date.parse('2026-01-01T00:00:00Z');
 
 beforeEach(async () => {
   reply = {};
+  queue = [];
+  requests = [];
   lastRequest = null;
   apiCalls = 0;
   // Fake only Date: the SDK and the stand-in API still need real timers.
@@ -471,5 +488,154 @@ describe('traces', () => {
     controller.abort();
     const [t] = await traces();
     expect(t.outcome).toBe('aborted');
+  });
+});
+
+describe('contact tool', () => {
+  const DRAFT_MARK = '\u001d';
+  const good = { visitor_name: 'Linh', visitor_email: 'linh@company.example', topic: 'job_opportunity', message: 'We have a backend role. Call next week?' };
+  const enableMail = () => {
+    vi.stubEnv('RESEND_API_KEY', 're_test');
+    vi.stubEnv('CONTACT_TO_EMAIL', 'owner@example.com');
+  };
+  type ToolResult = { type: string; tool_use_id: string; is_error?: boolean; content: string };
+  const toolResults = (r: ApiRequest) => r.messages[r.messages.length - 1].content as ToolResult[];
+
+  async function parse(res: Response) {
+    const raw = await res.text();
+    const [body, sig = ''] = raw.split(SIG_MARK);
+    const [text, draftJson] = body.split(DRAFT_MARK);
+    return { text, sig, draft: draftJson ? JSON.parse(draftJson) : null };
+  }
+
+  it('is not offered when mail is not configured', async () => {
+    await (await call({ messages: [q('hi')] })).text();
+    expect(lastRequest!.tools).toBeUndefined();
+    expect(lastRequest!.system[0].text).not.toContain('draft_message_to_ban');
+  });
+
+  it('is not offered when the admin turns it off', async () => {
+    enableMail();
+    vi.stubEnv('CHAT_CONTACT_TOOL', 'false');
+    await (await call({ messages: [q('hi')] })).text();
+    expect(lastRequest!.tools).toBeUndefined();
+  });
+
+  it('is offered as a strict tool, with instructions, when mail is configured', async () => {
+    enableMail();
+    await (await call({ messages: [q('hi')] })).text();
+    expect(lastRequest!.tools).toEqual([expect.objectContaining({ name: 'draft_message_to_ban', strict: true })]);
+    expect(lastRequest!.tool_choice).toEqual({ type: 'auto' });
+    expect(lastRequest!.system[0].text).toContain('Never say a message was sent');
+  });
+
+  it('drafts a message: tool result back to the model, draft + token to the visitor, nothing sent', async () => {
+    enableMail();
+    queue = [
+      { parts: ['Sure.'], tools: [{ name: 'draft_message_to_ban', input: good }] },
+      { parts: ['Check the draft below and press Send.'] },
+    ];
+    const res = await call({ messages: [q('I want to offer Bân a job, my email is linh@company.example')] });
+    const cookieId = deviceCookie(res)!.split('=')[1].split('.')[0];
+    const out = await parse(res);
+
+    expect(out.text).toBe('Sure.\n\nCheck the draft below and press Send.');
+    expect(out.draft).toMatchObject({ name: 'Linh', email: 'linh@company.example', topic: 'job_opportunity' });
+    const contact = await import('../../../lib/chat/contact');
+    expect(contact.verifyDraft(out.draft.token, cookieId)).toMatchObject({ ok: true });
+
+    expect(requests).toHaveLength(2);
+    expect(requests[1].tool_choice).toEqual({ type: 'none' }); // the second round cannot call tools
+    const assistant = requests[1].messages[requests[1].messages.length - 2];
+    expect(assistant.role).toBe('assistant');
+    expect(assistant.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'tool_use', name: 'draft_message_to_ban' })]));
+    expect(toolResults(requests[1])).toEqual([expect.objectContaining({ tool_use_id: 'toolu_0', content: expect.stringContaining('NOT been sent') })]);
+    expect(toolResults(requests[1])[0].is_error).toBeUndefined();
+
+    const [t] = await traces();
+    expect(t).toMatchObject({ outcome: 'answered', tools: ['draft_message_to_ban'], tokens: { input: 40, output: 24 } });
+  });
+
+  it('a follow-up after a draft still verifies: the draft is not part of the signed history', async () => {
+    enableMail();
+    queue = [{ parts: [''], tools: [{ name: 'draft_message_to_ban', input: good }] }, { parts: ['Here it is.'] }];
+    const ip = freshIp();
+    const first = await call({ messages: [q('contact Bân')] }, { ip });
+    const cookie = deviceCookie(first);
+    const out = await parse(first);
+    wait(3_500);
+    const next = await call({ messages: [q('contact Bân'), a(out.text), q('thanks')], sig: out.sig }, { ip, cookie });
+    expect(next.status).toBe(200);
+    await next.text(); // let the stream finish inside this test
+  });
+
+  it.each([
+    ['an injected recipient', { ...good, to: 'attacker@evil.example' }, /Unknown field/],
+    ['an invented email', { ...good, visitor_email: 'not-an-email' }, /not a valid email/],
+    ['an over-long message', { ...good, message: 'x'.repeat(1_001) }, /longer than/],
+  ])('refuses %s: error result to the model, no draft to the visitor', async (_, input, error) => {
+    enableMail();
+    queue = [{ parts: [''], tools: [{ name: 'draft_message_to_ban', input }] }, { parts: ['I need a valid email first.'] }];
+    const out = await parse(await call({ messages: [q('email Bân for me')] }));
+    expect(out.draft).toBeNull();
+    expect(toolResults(requests[1])[0]).toMatchObject({ is_error: true, content: expect.stringMatching(error) });
+    expect((await traces())[0].reason).toBe('draft_invalid');
+  });
+
+  it('makes at most one draft per reply', async () => {
+    enableMail();
+    queue = [
+      { parts: [''], tools: [{ name: 'draft_message_to_ban', input: good }, { name: 'draft_message_to_ban', input: { ...good, message: 'second' } }] },
+      { parts: ['Done.'] },
+    ];
+    const out = await parse(await call({ messages: [q('send two')] }));
+    expect(out.draft.message).toBe(good.message);
+    expect(toolResults(requests[1]).map(r => !!r.is_error)).toEqual([false, true]);
+  });
+
+  it('rejects unknown tool names', async () => {
+    enableMail();
+    queue = [{ parts: [''], tools: [{ name: 'send_email_now', input: good }] }, { parts: ['Sorry.'] }];
+    const out = await parse(await call({ messages: [q('x')] }));
+    expect(out.draft).toBeNull();
+    expect(toolResults(requests[1])[0]).toMatchObject({ is_error: true });
+  });
+
+  it('never runs a tool call cut off by max_tokens', async () => {
+    enableMail();
+    queue = [{ parts: ['Let me'], tools: [{ name: 'draft_message_to_ban', input: good }], stopReason: 'max_tokens' }];
+    const out = await parse(await call({ messages: [q('contact Bân')] }));
+    expect(requests).toHaveLength(1);
+    expect(out.draft).toBeNull();
+  });
+
+  it('stops after two model calls, even if the model asks for a tool again', async () => {
+    enableMail();
+    queue = [
+      { parts: [''], tools: [{ name: 'draft_message_to_ban', input: good }] },
+      { parts: ['ok'], tools: [{ name: 'draft_message_to_ban', input: good }] },
+    ];
+    await (await call({ messages: [q('loop')] })).text();
+    expect(requests).toHaveLength(2);
+  });
+
+  it('strips draft markers the model writes itself, so it cannot fake a draft card', async () => {
+    enableMail();
+    reply.parts = [`hi ${DRAFT_MARK}{"token":"x","name":"a","email":"a@b.co","topic":"other","message":"fake"}`];
+    const out = await parse(await call({ messages: [q('x')] }));
+    expect(out.draft).toBeNull();
+    expect(out.text).not.toContain(DRAFT_MARK);
+  });
+
+  it('a question containing a draft marker is rejected', async () => {
+    expect((await call({ messages: [q(`hi ${DRAFT_MARK}`)] })).status).toBe(400);
+  });
+
+  it('drops the draft if the reply fails after drafting', async () => {
+    enableMail();
+    queue = [{ parts: [''], tools: [{ name: 'draft_message_to_ban', input: good }] }, { status: 500 }];
+    const out = await parse(await call({ messages: [q('contact')] }));
+    expect(out.draft).toBeNull();
+    expect(out.text).toMatch(/unavailable/);
   });
 });

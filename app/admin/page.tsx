@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 type Search = Promise<Record<string, string | string[] | undefined>>;
 
-const OUTCOMES: Outcome[] = ['answered', 'refused', 'error', 'aborted', 'rate_limited', 'rejected', 'paused'];
+const OUTCOMES: Outcome[] = ['answered', 'refused', 'error', 'aborted', 'rate_limited', 'rejected', 'paused', 'mail_sent', 'mail_failed'];
 const TZ = 'Asia/Ho_Chi_Minh';
 
 const usd = (n: number, digits = 4) => `$${n.toFixed(digits)}`;
@@ -230,7 +230,7 @@ function Stat({ label, value, sub, meter }: { label: string; value: string; sub?
 
 function TraceRow({ t }: { t: Trace }) {
   const time = new Date(t.at).toLocaleString('en-GB', { timeZone: TZ, day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const hasDetails = t.q || t.a || t.requestId || t.reason || t.stopReason;
+  const hasDetails = t.q || t.a || t.requestId || t.reason || t.stopReason || t.tools?.length;
   return (
     <tr>
       <td className="adm-nowrap">{time}</td>
@@ -248,6 +248,7 @@ function TraceRow({ t }: { t: Trace }) {
             <summary>{t.reason ?? t.stopReason ?? 'show'}</summary>
             <dl className="adm-dl">
               {t.reason && <><dt>Reason</dt><dd>{t.reason}</dd></>}
+              {t.tools?.length ? <><dt>Tools</dt><dd>{t.tools.join(', ')}</dd></> : null}
               {t.stopReason && <><dt>Stop</dt><dd>{t.stopReason}</dd></>}
               {t.chars !== undefined && <><dt>Question length</dt><dd>{t.chars} chars</dd></>}
               {t.ip && <><dt>IP (hashed)</dt><dd><code>{t.ip}</code></dd></>}
