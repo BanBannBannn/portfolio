@@ -47,7 +47,11 @@ typography:
 rounded:
   focus: "4px"
   button: "8px"
+  input: "10px"
   card: "12px"
+  bubble: "14px"
+  panel: "16px"
+  pill: "999px"
   round: "50%"
 spacing:
   maxw: "880px"
@@ -77,7 +81,8 @@ LinkedIn.
   dot and the "Live" project flag only. No other hue.
 - No canvas, no scroll-driven animation, no entrance animation, no hover lift.
   Transitions are colour/opacity only, 0.15s.
-- No shadows except the 4px halo on the availability dot.
+- No shadows except the 4px halo on the availability dot and the floating
+  chat button/panel, which sit above page content and need to read as layered.
 - Section headings are plain words ("Experience", "Projects") in a left label
   column from 760px up; stacked above content on mobile.
 - No project images or image placeholders until real screenshots exist.
@@ -88,3 +93,11 @@ LinkedIn.
 Single 880px column. Order: header (portrait, name, role, intro, status,
 actions) → Experience → Projects → Skills → About → Contact → footer.
 Sections are separated by a 1px `--line` rule.
+
+## Chat
+
+A pill button fixed bottom-right ("Ask AI about me") opens a 400×600 panel on
+desktop and a full-screen sheet below 560px. It never opens on its own. The
+panel states that an AI answers and can be wrong, and points to email. Answers
+come from `content/profile.md` only, via `app/api/chat/route.ts`
+(Claude Haiku 5.5).

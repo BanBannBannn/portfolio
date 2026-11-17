@@ -69,8 +69,10 @@ Current technical reality, read from the codebase (recorded as fact, **not**
 confirmed by the owner as permanently binding):
 
 - Next.js 16 App Router with React 19 and TypeScript; `next dev --webpack`.
-- `output: 'export'` — fully static export, `images.unoptimized`. No server
-  runtime, so no API routes, no SSR-dependent behaviour, no ISR.
+- Deployed on Vercel with a server runtime (static export was dropped in
+  Nov 2026 for the chat). Pages are still prerendered as static HTML; the one
+  server route is `POST /api/chat`, an AI assistant that answers only from
+  `content/profile.md` (Claude Haiku 5.5). See `docs/chat-setup.md`.
 - Installable PWA with an offline service worker via Serwist (`app/sw.ts` →
   `public/sw.js`), plus `public/manifest.json`.
 - A single scrolling route (`app/page.tsx`) composed of six sections: Hero,
