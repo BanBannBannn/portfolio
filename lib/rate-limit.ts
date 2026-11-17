@@ -19,11 +19,12 @@ export function createRateLimiter(limit: number, windowMs: number) {
   };
 
   return {
-    check(key: string): { ok: true } | { ok: false; retryAfterSec: number } {
+    /** `max` overrides the limit for this check, so it can change at runtime. */
+    check(key: string, max = limit): { ok: true } | { ok: false; retryAfterSec: number } {
       const now = Date.now();
       const r = recent(key, now);
-      return r.length >= limit
-        ? { ok: false, retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - r[0])) / 1000)) }
+      return r.length >= max
+        ? { ok: false, retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - r[r.length - max])) / 1000)) }
         : { ok: true };
     },
 
