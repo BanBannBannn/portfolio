@@ -21,7 +21,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 ### Prerequisites
 
-- Node.js 18.x or later
+- Node.js 22 or later (CI runs on Node 24)
 - npm, yarn, pnpm, or bun
 
 ### Installation
@@ -48,9 +48,26 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 4. Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+## ✅ Tests and CI
+
+```bash
+npm test        # Vitest: rate limiter + the /api/chat route against a local stand-in for the Claude API
+npm run lint
+npm run build   # also type-checks
+```
+
+The route tests need no API key or network: they start a small fake Messages API
+and point the real Anthropic SDK at it.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs lint, tests and build on every pull
+request and every push to `main`. Deploys are done by Vercel's Git integration.
+
 ## 📂 Project Structure
 
 - `/app`: Contains the main pages and routing logic (Next.js App Router).
+- `/app/api/chat`: the "Ask AI about me" endpoint (setup guide: `docs/chat-setup.md`).
+- `/lib`: server helpers such as the rate limiter.
+- `/content/profile.md`: the only source the chat answers from.
 - `/public`: Static assets such as images and icons.
 
 ## 🤝 Contributing
