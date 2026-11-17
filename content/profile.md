@@ -53,3 +53,4 @@ To set the pronouns the assistant uses, add a line such as "Pronouns: ..." under
 
 - Picks the datastore to fit the problem: PostgreSQL or SQL Server when the data has shape, MongoDB when it doesn't, Qdrant when it needs to be searched by meaning.
 - Started on ASP.NET Core with the WareEase capstone, which taught API design through real roles, permissions and a deploy pipeline.
+- Believes code is meant to be shared and knowledge belongs to everyone, so open-sources personal projects wherever possible. Every project listed here, including this portfolio site and its AI chat, has public source code (this site: https://github.com/BanBannBannn/portfolio). Most of what Bân knows came from other people's docs, answered issues and open-source libraries; publishing Bân's own work is a way of giving back.
