@@ -72,7 +72,7 @@ confirmed by the owner as permanently binding):
 - Deployed on Vercel with a server runtime (static export was dropped in
   Nov 2026 for the chat). Pages are still prerendered as static HTML; the one
   server route is `POST /api/chat`, an AI assistant that answers only from
-  `content/profile.md` (Claude Haiku 5.5). See `docs/chat-setup.md`.
+  `content/profile.md` (a free NVIDIA Nemotron model via OpenRouter). See `docs/chat-setup.md`.
 - Installable PWA with an offline service worker via Serwist (`app/sw.ts` →
   `public/sw.js`), plus `public/manifest.json`.
 - A single scrolling route (`app/page.tsx`) composed of six sections: Hero,
