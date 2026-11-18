@@ -18,22 +18,22 @@ const text = Be_Vietnam_Pro({
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000';
 
 const DESCRIPTION =
-  'Backend engineer in Ho Chi Minh City. APIs in Spring Boot, ASP.NET Core, FastAPI and NestJS; RAG pipelines with Qdrant and Python.';
+  'Software and AI engineer in Ho Chi Minh City. .NET microservices and APIs in Spring Boot, ASP.NET Core, FastAPI and NestJS; RAG pipelines with Qdrant and Python.';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: 'Trần Văn Gia Bân — Backend Engineer',
+  title: 'Trần Văn Gia Bân — Software & AI Engineer',
   description: DESCRIPTION,
-  keywords: ['Software Engineer', 'Backend', 'ASP.NET Core', 'Spring Boot', 'FastAPI', 'Vietnam'],
+  keywords: ['Software Engineer', 'AI Engineer', 'Backend', 'ASP.NET Core', 'Spring Boot', 'FastAPI', 'Vietnam'],
   manifest: '/manifest.json',
   openGraph: {
-    title: 'Trần Văn Gia Bân — Backend Engineer',
+    title: 'Trần Văn Gia Bân — Software & AI Engineer',
     description: DESCRIPTION,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Trần Văn Gia Bân — Backend Engineer',
+    title: 'Trần Văn Gia Bân — Software & AI Engineer',
     description: DESCRIPTION,
   },
 };

@@ -20,14 +20,16 @@ export default function Hero() {
           />
           <div>
             <h1 className="name">Trần Văn Gia Bân</h1>
-            <p className="role"><span>Backend Engineer</span> · <span>Ho Chi Minh City</span></p>
+            <p className="role"><span>Software &amp; AI Engineer</span> · <span>Ho Chi Minh City</span></p>
           </div>
         </div>
 
         <p className="intro">
-          I build <strong>APIs, data models and the services behind them</strong>, in Spring Boot,
-          ASP.NET Core, FastAPI and NestJS. Most recently at HANEXT Technology, where a lot of
-          the work was retrieval: RAG pipelines on Qdrant and agent logic in Python.
+          I&apos;m a software engineer and an AI engineer. I build{' '}
+          <strong>APIs, data models and the services behind them</strong>, in ASP.NET Core, Spring
+          Boot, FastAPI and NestJS, and the AI that sits on top: RAG pipelines on Qdrant, agent
+          logic in Python. Now an AI engineer trainee at VinSmart Future, working on .NET
+          microservices and an Angular frontend.
         </p>
 
         <p className="status">

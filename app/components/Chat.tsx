@@ -1,5 +1,6 @@
 'use client';
 import { Fragment, useEffect, useRef, useState } from 'react';
+import ChatText from './ChatText';
 
 type Turn = { role: 'user' | 'assistant'; content: string };
 
@@ -48,7 +49,7 @@ const LINKEDIN = 'https://www.linkedin.com/in/bantrandev/';
 const SUGGESTIONS = [
   'What backend stack does Bân work with?',
   'Is Bân open to remote roles?',
-  'Bân đã làm gì ở HANEXT?',
+  'Bân đang làm gì ở VinSmart Future?',
 ];
 
 /** Why the chat stopped taking questions, if it has. */
@@ -318,10 +319,16 @@ export default function Chat() {
 
             {turns.map((t, i) => (
               <Fragment key={i}>
-                <p className={`msg msg--${t.role}`}>
+                <div className={`msg msg--${t.role}`}>
                   <span className="sr-only">{t.role === 'user' ? 'You: ' : 'Assistant: '}</span>
-                  {t.content || <span className="msg-wait">Thinking…</span>}
-                </p>
+                  {!t.content ? (
+                    <span className="msg-wait">Thinking…</span>
+                  ) : t.role === 'assistant' ? (
+                    <ChatText text={t.content} />
+                  ) : (
+                    t.content
+                  )}
+                </div>
                 {mail && mail.at === i && mail.status !== 'discarded' && (
                   <div className="chat-draft" role="group" aria-label="Draft message to Bân">
                     <p className="chat-draft-head">

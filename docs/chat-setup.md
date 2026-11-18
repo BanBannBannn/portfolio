@@ -108,7 +108,7 @@ AI chỉ có một tool: **soạn** tin nhắn gửi Bân. Tool này không gử
 | Lộ API key | Key chỉ nằm trên server (biến môi trường), không bao giờ gửi xuống trình duyệt. `.env*` đã nằm trong `.gitignore`. |
 | Prompt injection (dụ AI phá luật) | System prompt yêu cầu chỉ trả lời từ profile, từ chối việc lạc đề. AI không có tool hay dữ liệu bí mật nào, nên bị dụ thì cùng lắm nói linh tinh, không làm hại được gì. |
 | Giả mạo lịch sử chat | Server ký HMAC lên từng câu trả lời; sửa bất kỳ câu nào trong lịch sử là bị từ chối (400). |
-| XSS | Câu trả lời hiển thị dưới dạng chữ thuần, không bao giờ render HTML. Đã test với payload `<img onerror>`. |
+| XSS | Câu trả lời được dựng bằng React element từ Markdown cơ bản (in đậm, nghiêng, danh sách, code, link), không bao giờ render HTML thô. Link chỉ nhận http(s) và mailto, `javascript:` và `data:` thành chữ thường. Đã test với payload `<img onerror>`, `<script>` (`app/components/ChatText.test.tsx`). |
 | CSRF / site khác gọi API | Kiểm tra `Origin` và bắt buộc `Content-Type: application/json`. |
 | Spam / đốt quota | Giới hạn nhiều lớp (bảng dưới), câu hỏi ≤ 300 ký tự, ≤ 6 câu mỗi cuộc chat, câu trả lời ≤ 2048 token, body ≤ 120 KB, ngắt gọi AI khi người dùng đóng chat, mỗi lần gọi OpenRouter tối đa 27 giây. Model free không tốn tiền, nhưng **quota request/ngày của OpenRouter là thứ có thể cạn** (mục 1). |
 | Clickjacking | Header `frame-ancestors 'none'` và `X-Frame-Options: DENY`. |

@@ -17,6 +17,13 @@ export default function About() {
             shape, MongoDB when it doesn&apos;t, Qdrant when it needs to be searched by meaning.
           </p>
           <p>
+            These days I&apos;m at VinSmart Future, where I joined as an AI engineer intern in May
+            and became a full-time trainee on 20 July. The project I&apos;m on is an elder-care
+            platform: .NET microservices at the core, an Angular frontend on top, so the ASP.NET
+            Core I started on with my capstone is back as my day-to-day. Since March I&apos;ve also
+            been studying AI at VinUni.
+          </p>
+          <p>
             Most of what I know, I learned from people who chose to publish their work: docs,
             answered issues, the source of the libraries I use every day. Code is meant to be
             shared and knowledge belongs to everyone, so I open-source my projects wherever I
