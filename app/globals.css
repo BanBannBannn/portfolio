@@ -324,6 +324,17 @@ strong { color: var(--ink); font-weight: 600; }
   background: currentColor;
 }
 
+.project-shot {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 3;
+  object-fit: cover;
+  object-position: top;
+  margin: 14px 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
 .project-desc { margin: 8px 0 0; max-width: 66ch; }
 .stack {
   margin: 12px 0 0;
