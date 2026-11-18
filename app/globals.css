@@ -503,6 +503,29 @@ strong { color: var(--ink); font-weight: 600; }
   color: var(--muted);
 }
 
+/* A message the assistant drafted for the visitor to send. */
+.chat-draft {
+  align-self: stretch;
+  display: grid;
+  gap: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.chat-draft-head { margin: 0; font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.chat-draft-body {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.chat-draft-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; }
+.chat-draft-actions .chat-new { margin-top: 0; }
+.chat-draft-done { margin: 0; font-size: 0.875rem; font-weight: 600; color: var(--ink); }
+
 .chat-form {
   padding: 12px 12px 8px;
   border-top: 1px solid var(--line);

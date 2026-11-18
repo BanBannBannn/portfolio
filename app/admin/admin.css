@@ -95,7 +95,7 @@
   white-space: nowrap;
 }
 .adm-pill[data-outcome='answered'] { color: var(--ink); border-color: var(--muted); }
-.adm-pill[data-outcome='error'], .adm-pill[data-outcome='refused'] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.adm-pill[data-outcome='error'], .adm-pill[data-outcome='refused'], .adm-pill[data-outcome='mail_failed'] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 
 .adm-filters { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 0.8125rem; }
 .adm-filters a { color: var(--muted); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: transparent; padding: 6px 0; }

@@ -58,6 +58,14 @@ export const FIELDS = {
     help: 'Counted per server instance.',
   },
   globalPerDay: { env: 'CHAT_GLOBAL_PER_DAY', type: 'number', min: 1, max: 500000, group: 'Rate limits', label: 'Whole site, per day', help: '' },
+  contactTool: {
+    env: 'CHAT_CONTACT_TOOL', type: 'boolean', group: 'Messages to Bân', label: 'Let the AI draft messages to Bân',
+    help: 'The visitor reviews the draft and presses Send. Needs RESEND_API_KEY and CONTACT_TO_EMAIL.',
+  },
+  mailPerDay: {
+    env: 'CHAT_MAIL_PER_DAY', type: 'number', min: 1, max: 100, group: 'Messages to Bân', label: 'Messages per day, whole site',
+    help: 'Also 2 per device and 3 per IP per day. Resend\'s free tier allows 100 a day.',
+  },
   dailyBudgetUsd: {
     env: 'CHAT_DAILY_BUDGET_USD', type: 'number', min: 0, max: 100, step: 0.01, group: 'Budget', label: 'Daily budget (USD)',
     help: 'When today\'s estimated spend reaches this, the chat pauses until midnight UTC. 0 = no daily cap.',
@@ -82,6 +90,8 @@ export type ChatConfig = {
   ipPerDay: number;
   globalPerHour: number;
   globalPerDay: number;
+  contactTool: boolean;
+  mailPerDay: number;
   dailyBudgetUsd: number;
   monthlyBudgetUsd: number;
 };
@@ -101,6 +111,8 @@ export const DEFAULTS: ChatConfig = {
   ipPerDay: 60,
   globalPerHour: 300,
   globalPerDay: 1500,
+  contactTool: true,
+  mailPerDay: 20,
   dailyBudgetUsd: 0.5,
   monthlyBudgetUsd: 5,
 };
