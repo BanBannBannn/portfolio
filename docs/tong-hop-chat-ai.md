@@ -92,7 +92,7 @@ Chi tiết và danh sách 16 mối đe doạ của tính năng soạn tin: `docs
 
 - **Key chỉ ở server**, không xuống trình duyệt, `.env*` đã gitignore.
 - **AI không tự gửi được gì.** Người nhận cố định ở server (`CONTACT_TO_EMAIL`). Nháp gắn với thiết bị của khách, dùng một lần, hết hạn sau 30 phút, giới hạn 2 tin mỗi thiết bị, 3 mỗi IP mỗi ngày.
-- **Chống giả lịch sử chat** (ký HMAC từng câu), **chống XSS** (chỉ hiển thị chữ thuần), **chống CSRF** (kiểm Origin và Content-Type).
+- **Chống giả lịch sử chat** (ký HMAC từng câu), **chống XSS** (Markdown dựng bằng React element, không render HTML; link chỉ http(s)/mailto), **chống CSRF** (kiểm Origin và Content-Type).
 - **Giới hạn nhiều lớp** theo thiết bị, IP, toàn site; mỗi lần gọi model tối đa 27 giây; đóng khung chat thì ngắt gọi model.
 - **`/admin`:** ô đăng nhập hiện công khai nhưng chưa đăng nhập thì không lộ số liệu nào; sai 5 lần trong 15 phút thì IP bị khoá tạm; `noindex`. Muốn ẩn hẳn thì đổi đường dẫn hoặc dùng Firewall của Vercel (chưa làm).
 - **Về nội dung profile:** AI có thể bị dụ đọc nguyên văn profile, và profile được gửi sang OpenRouter cùng nhà cung cấp model free (họ có thể lưu lại). Chỉ đưa vào thứ chấp nhận công khai. Nội dung hiện tại chỉ gồm thông tin đã công khai.

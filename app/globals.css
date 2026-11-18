@@ -484,10 +484,21 @@ strong { color: var(--ink); font-weight: 600; }
   max-width: 88%;
   font-size: 0.9375rem;
   line-height: 1.6;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+.msg > p { margin: 0; }
+.msg > p + p, .msg > p + ul, .msg > p + ol, .msg > ul + p, .msg > ol + p { margin-top: 0.6em; }
+.msg ul, .msg ol { margin: 0; padding-left: 1.3em; }
+.msg li + li { margin-top: 0.2em; }
+.msg strong { font-weight: 600; color: var(--ink); }
+.msg code {
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ink) 7%, transparent);
+  font-size: 0.9em;
+}
 .msg--user {
+  white-space: pre-wrap;
   align-self: flex-end;
   padding: 8px 14px;
   border-radius: 14px 14px 4px 14px;
