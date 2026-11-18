@@ -44,6 +44,7 @@ To set the pronouns the assistant uses, add a line such as "Pronouns: ..." under
 
 ## Projects
 
+- **Bàn Tròn** (personal, live at https://bantron.vercel.app/): a realtime collaborative whiteboard with freehand drawing, shapes, rich text, tables, sticky notes and a chat, plus live cursors and presence. Chat, board content and profile data are encrypted with AES-256; no account is needed, a shared link is enough. Runs on Supabase Free and Vercel Hobby with CI/CD and Playwright tests. Next.js 16, Supabase (Postgres, Auth, Realtime, Storage), Tiptap, Tailwind 4. Source: https://github.com/BanBannBannn/ban-tron
 - **GameHub** (personal, live at https://gamehub-board.vercel.app/): an offline-first PWA with six board games — chess against Stockfish, xiangqi, gomoku, sudoku, minesweeper, number guessing. Progress is saved to IndexedDB. Next.js, React 19, TypeScript, Zustand. Source: https://github.com/BanBannBannn/gamehub
 - **SmartMenuVibe** (personal, live at https://smart-menu-vibe.vercel.app/): a multi-tenant restaurant SaaS with QR ordering, a realtime kitchen board, and dish recommendations based on time of day and weather. Next.js, React 19, Supabase Realtime, Azure Face. Source: https://github.com/BanBannBannn/SmartMenuVibe
 - **DevToolBox AI** (personal, live at https://devtoolbox-ai-murex.vercel.app/): twelve in-browser developer tools (JSON formatter, JWT decoder, QR and UUID generators) and a small markdown blog. Next.js 16, React 19, TypeScript, Tailwind. Source: https://github.com/BanBannBannn/devtoolbox-ai

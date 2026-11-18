@@ -14,6 +14,15 @@ type Project = {
 const projects: Project[] = [
   {
     kind: 'Personal',
+    name: 'Bàn Tròn',
+    desc: 'A realtime collaborative whiteboard: freehand drawing, shapes, rich text, tables and a chat, with live cursors and presence. Chat, board content and profile data are encrypted with AES-256, and it needs no account, only a shared link. It runs on the free tiers of Supabase and Vercel, with CI/CD and end-to-end tests.',
+    tech: ['Next.js 16', 'Supabase Realtime', 'Tiptap', 'Tailwind 4', 'Playwright'],
+    github: 'https://github.com/BanBannBannn/ban-tron',
+    demo: 'https://bantron.vercel.app/',
+    shot: { src: '/shots/ban-tron.jpg', alt: 'Bàn Tròn home page: "Cùng vẽ, cùng viết, cùng bàn — ngay lúc này." beside a whiteboard with sticky notes, shapes, a table and live cursors.' },
+  },
+  {
+    kind: 'Personal',
     name: 'GameHub',
     desc: 'An offline-first PWA with six board games: chess against Stockfish, xiangqi, gomoku, sudoku, minesweeper and number guessing. Progress is saved to IndexedDB, so a half-finished game survives a closed tab.',
     tech: ['Next.js', 'React 19', 'TypeScript', 'Zustand', 'PWA'],
