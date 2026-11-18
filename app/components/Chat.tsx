@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 
 type Turn = { role: 'user' | 'assistant'; content: string };
 
-// Must match app/api/chat/route.ts.
-const MAX_QUESTION = 300;
-const MAX_QUESTIONS = 6;
+/** Used until GET /api/chat answers with the live settings (see lib/chat/config.ts). */
+const DEFAULT_SETTINGS = { enabled: true, maxQuestions: 6, maxQuestionChars: 300, logContent: false };
+type Settings = typeof DEFAULT_SETTINGS;
 /** The server ends each answer with this mark and a signature of the conversation. */
 const SIG_MARK = '\u001e';
 
@@ -20,7 +20,7 @@ const SUGGESTIONS = [
 ];
 
 /** Why the chat stopped taking questions, if it has. */
-type Stop = null | { kind: 'done' } | { kind: 'limit'; retryAfter: number };
+type Stop = null | { kind: 'done' } | { kind: 'limit'; retryAfter: number } | { kind: 'paused' };
 
 function waitText(seconds: number) {
   if (seconds < 90) return 'in a minute';
@@ -35,6 +35,9 @@ export default function Chat() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [limited, setLimited] = useState<{ retryAfter: number } | null>(null);
+  const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const MAX_QUESTION = settings.maxQuestionChars;
+  const MAX_QUESTIONS = settings.maxQuestions;
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
@@ -45,11 +48,32 @@ export default function Chat() {
 
   const asked = turns.filter(t => t.role === 'user').length;
   const left = MAX_QUESTIONS - asked;
-  const stop: Stop = limited
-    ? { kind: 'limit', retryAfter: limited.retryAfter }
-    : left <= 0 && !busy
-      ? { kind: 'done' }
-      : null;
+  const stop: Stop = !settings.enabled
+    ? { kind: 'paused' }
+    : limited
+      ? { kind: 'limit', retryAfter: limited.retryAfter }
+      : left <= 0 && !busy
+        ? { kind: 'done' }
+        : null;
+
+  // Fetch the live settings the first time the chat opens.
+  const loadedRef = useRef(false);
+  useEffect(() => {
+    if (!open || loadedRef.current) return;
+    loadedRef.current = true;
+    fetch('/api/chat', { cache: 'no-store' })
+      .then(r => (r.ok ? r.json() : null))
+      .then((s: Partial<Settings> | null) => {
+        if (!s) return;
+        setSettings(prev => ({
+          enabled: typeof s.enabled === 'boolean' ? s.enabled : prev.enabled,
+          maxQuestions: Number(s.maxQuestions) || prev.maxQuestions,
+          maxQuestionChars: Number(s.maxQuestionChars) || prev.maxQuestionChars,
+          logContent: s.logContent === true,
+        }));
+      })
+      .catch(() => {});
+  }, [open]);
 
   // Focus the input on open; on close, hand focus back to the toggle once it
   // is visible again (it is hidden while the panel is open).
@@ -126,7 +150,9 @@ export default function Chat() {
       });
 
       if (!res.ok || !res.body) {
-        const data: { error?: string; scope?: string; retryAfter?: number } = await res.json().catch(() => ({}));
+        const data: { error?: string; scope?: string; retryAfter?: number; max?: number } = await res
+          .json()
+          .catch(() => ({}));
 
         if (res.status === 429 && data.scope === 'burst') {
           return undo('Please wait a moment before the next question.');
@@ -138,7 +164,20 @@ export default function Chat() {
           return;
         }
         if (res.status === 400 && data.error === 'too_long') {
-          return undo(`Please keep questions under ${MAX_QUESTION} characters.`);
+          if (data.max) setSettings(s => ({ ...s, maxQuestionChars: Number(data.max) || s.maxQuestionChars }));
+          return undo(`Please keep questions under ${data.max ?? MAX_QUESTION} characters.`);
+        }
+        if (res.status === 400 && data.error === 'too_many_questions') {
+          // The limit was lowered mid-chat: end this one with the contact card.
+          setTurns(before);
+          setSettings(s => ({ ...s, maxQuestions: Math.max(1, Math.ceil(before.length / 2)) }));
+          return;
+        }
+        if (res.status === 503 && data.error === 'paused') {
+          setTurns(before);
+          setDraft(q);
+          setSettings(s => ({ ...s, enabled: false }));
+          return;
         }
         if (res.status === 400) {
           // e.g. a missing signature after an interrupted answer: start over.
@@ -199,6 +238,7 @@ export default function Chat() {
               <p className="chat-note">
                 An AI answers from Bân&apos;s own notes and can still be wrong. For anything
                 important, email <a className="a" href={`mailto:${EMAIL}`}>{EMAIL}</a>.
+                {settings.logContent && ' Questions are saved so Bân can improve the answers.'}
               </p>
             </div>
             <button type="button" className="chat-close" onClick={close} aria-label="Close chat">
@@ -232,7 +272,9 @@ export default function Chat() {
               <p className="chat-contact-text">
                 {stop.kind === 'done'
                   ? `That's ${MAX_QUESTIONS} questions, the most for one chat. To keep talking, reach Bân directly:`
-                  : `You've reached the chat limit for now (it resets ${waitText(stop.retryAfter)}). To keep talking, reach Bân directly:`}
+                  : stop.kind === 'paused'
+                    ? 'The assistant is taking a break right now. Bân is happy to answer directly:'
+                    : `You've reached the chat limit for now (it resets ${waitText(stop.retryAfter)}). To keep talking, reach Bân directly:`}
               </p>
               <div className="chat-contact-links">
                 <a className="btn" href={`mailto:${EMAIL}`}>Email Bân</a>

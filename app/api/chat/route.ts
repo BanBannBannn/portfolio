@@ -2,20 +2,18 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import Anthropic from '@anthropic-ai/sdk';
+import { after } from 'next/server';
 import { createRateLimiter } from '../../../lib/rate-limit';
+import { getConfig, type ChatConfig } from '../../../lib/chat/config';
+import { costUsd, getSpend, pseudonym, recordTrace, type Trace } from '../../../lib/chat/telemetry';
 
 export const maxDuration = 30;
 
-const MODEL = 'claude-haiku-5-5';
-const MAX_QUESTIONS = 6;                      // per conversation; then the UI shows contact details
-const MAX_TURNS = MAX_QUESTIONS * 2 - 1;      // messages sent with the last question (user + assistant)
-const MAX_QUESTION_CHARS = 300;
-const MAX_OUTPUT_TOKENS = 1024;
-const MAX_ANSWER_CHARS = 6_000;               // a 1024-token answer fits comfortably
-const MAX_BODY_BYTES = 120_000;               // MAX_TURNS at the limits above, 3 bytes/char worst case
+// Limits, model and budget live in lib/chat/config.ts (env vars + /admin).
 /** Separates the answer text from its signature at the end of the stream. */
 const SIG_MARK = '\u001e';
 const DEVICE_COOKIE = 'chat_device';
+const CONTACT = 'tranvangiaban@gmail.com';
 
 // Loaded once per instance. Edit content/profile.md to change what the bot knows.
 const PROFILE = readFileSync(path.join(process.cwd(), 'content', 'profile.md'), 'utf8');
@@ -25,7 +23,7 @@ const SYSTEM = `You are the chat assistant on the portfolio website of Trần V�
 The profile document below is your only source of truth about Bân.
 
 How to answer:
-- Answer only from the profile. When it doesn't cover a question, say plainly that you don't have that information and suggest emailing Bân at tranvangiaban@gmail.com. Never guess, estimate or fill gaps with plausible details: a visitor may rely on your answer in a hiring decision, so a wrong claim does more harm than "I don't know".
+- Answer only from the profile. When it doesn't cover a question, say plainly that you don't have that information and suggest emailing Bân at ${CONTACT}. Never guess, estimate or fill gaps with plausible details: a visitor may rely on your answer in a hiring decision, so a wrong claim does more harm than "I don't know".
 - Do not invent numbers, metrics, dates, employers, titles or opinions that are not in the profile.
 - Reply in the visitor's language (usually Vietnamese or English).
 - Refer to Bân by name. Use the pronouns stated in the profile; if none are stated, use the name or they/them.
@@ -47,17 +45,34 @@ const DAY = 24 * HOUR;
  * limits exist. IP limits are looser because offices and mobile carriers put
  * many people behind one address. `burst` rejections are "wait a moment";
  * everything else means "you've asked enough for now, contact Bân directly".
+ * Burst limits are fixed; the rest come from the config.
  */
-const LIMITS = [
+const LIMITS: {
+  by: 'device' | 'ip' | 'all';
+  scope: 'burst' | 'limit';
+  limiter: ReturnType<typeof createRateLimiter>;
+  max?: (c: ChatConfig) => number;
+}[] = [
   { by: 'device', scope: 'burst', limiter: createRateLimiter(1, 2 * SECOND) },
-  { by: 'device', scope: 'limit', limiter: createRateLimiter(15, HOUR) },
-  { by: 'device', scope: 'limit', limiter: createRateLimiter(30, DAY) },
+  { by: 'device', scope: 'limit', limiter: createRateLimiter(15, HOUR), max: c => c.devicePerHour },
+  { by: 'device', scope: 'limit', limiter: createRateLimiter(30, DAY), max: c => c.devicePerDay },
   { by: 'ip', scope: 'burst', limiter: createRateLimiter(3, 10 * SECOND) },
-  { by: 'ip', scope: 'limit', limiter: createRateLimiter(30, HOUR) },
-  { by: 'ip', scope: 'limit', limiter: createRateLimiter(60, DAY) },
-  { by: 'all', scope: 'limit', limiter: createRateLimiter(300, HOUR) },   // per instance
-  { by: 'all', scope: 'limit', limiter: createRateLimiter(1500, DAY) },   // per instance
-] as const;
+  { by: 'ip', scope: 'limit', limiter: createRateLimiter(30, HOUR), max: c => c.ipPerHour },
+  { by: 'ip', scope: 'limit', limiter: createRateLimiter(60, DAY), max: c => c.ipPerDay },
+  { by: 'all', scope: 'limit', limiter: createRateLimiter(300, HOUR), max: c => c.globalPerHour }, // per instance
+  { by: 'all', scope: 'limit', limiter: createRateLimiter(1500, DAY), max: c => c.globalPerDay },  // per instance
+];
+
+/** Size caps that follow from the config. */
+function caps(c: ChatConfig) {
+  const answerChars = Math.max(6_000, c.maxOutputTokens * 6);
+  return {
+    maxTurns: c.maxQuestions * 2 - 1, // messages sent with the last question (user + assistant)
+    answerChars,
+    // Every turn at its limit, 3 bytes per character worst case, plus JSON overhead.
+    bodyBytes: (c.maxQuestions * c.maxQuestionChars + (c.maxQuestions - 1) * answerChars) * 3 + 4_096,
+  };
+}
 
 let client: Anthropic | null = null;
 function getClient() {
@@ -109,8 +124,10 @@ type Turn = { role: 'user' | 'assistant'; content: string };
  */
 const signHistory = (turns: Turn[]) => hmac('history', JSON.stringify(turns));
 
-function parseTurns(raw: unknown): Turn[] | 'too_long' | null {
-  if (!Array.isArray(raw) || raw.length === 0 || raw.length > MAX_TURNS) return null;
+function parseTurns(raw: unknown, c: ChatConfig): Turn[] | 'too_long' | 'too_many_questions' | null {
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const { maxTurns, answerChars } = caps(c);
+  if (raw.length > maxTurns) return raw.length % 2 === 1 ? 'too_many_questions' : null;
 
   const turns: Turn[] = [];
   for (let i = 0; i < raw.length; i++) {
@@ -120,8 +137,8 @@ function parseTurns(raw: unknown): Turn[] | 'too_long' | null {
 
     const content = m.content.trim();
     if (!content || content.includes(SIG_MARK)) return null;
-    if (expected === 'user' && content.length > MAX_QUESTION_CHARS) return 'too_long';
-    if (expected === 'assistant' && content.length > MAX_ANSWER_CHARS) return null;
+    if (expected === 'user' && content.length > c.maxQuestionChars) return 'too_long';
+    if (expected === 'assistant' && content.length > answerChars) return null;
 
     turns.push({ role: expected, content });
   }
@@ -148,66 +165,134 @@ function sameOrigin(req: Request) {
   }
 }
 
+/** Why the chat isn't answering right now, if it isn't. */
+async function pausedReason(c: ChatConfig): Promise<'disabled' | 'budget' | null> {
+  if (!c.enabled) return 'disabled';
+  if (c.dailyBudgetUsd > 0 || c.monthlyBudgetUsd > 0) {
+    const spend = await getSpend();
+    if (c.dailyBudgetUsd > 0 && spend.today >= c.dailyBudgetUsd) return 'budget';
+    if (c.monthlyBudgetUsd > 0 && spend.month >= c.monthlyBudgetUsd) return 'budget';
+  }
+  return null;
+}
+
+/** Runs telemetry after the response is sent; outside a request (tests) it just runs. */
+function schedule(task: () => Promise<void>) {
+  const run = () => task().catch(() => console.error('[chat] telemetry failed'));
+  try {
+    after(run);
+  } catch {
+    void run();
+  }
+}
+
 const SECURITY_HEADERS = { 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' };
 
 function json(status: number, data: Record<string, unknown>, headers?: Record<string, string>) {
   return Response.json(data, { status, headers: { ...SECURITY_HEADERS, ...headers } });
 }
 
+/** What the chat UI needs to know before the first question. */
+export async function GET() {
+  const c = await getConfig();
+  const paused = process.env.ANTHROPIC_API_KEY ? await pausedReason(c) : 'disabled';
+  return json(200, {
+    enabled: !paused,
+    maxQuestions: c.maxQuestions,
+    maxQuestionChars: c.maxQuestionChars,
+    logContent: c.logContent,
+  });
+}
+
 export async function POST(req: Request) {
-  if (!sameOrigin(req)) return json(403, { error: 'forbidden' });
+  const started = performance.now();
+  const trace: Trace = { id: randomUUID(), at: new Date().toISOString(), outcome: 'rejected', status: 0, durationMs: 0 };
+  const done = (res: Response, outcome: Trace['outcome'], reason?: string) => {
+    trace.outcome = outcome;
+    trace.status = res.status;
+    trace.reason = reason;
+    trace.durationMs = Math.round(performance.now() - started);
+    schedule(() => recordTrace(trace));
+    return res;
+  };
+
+  if (!sameOrigin(req)) return done(json(403, { error: 'forbidden' }), 'rejected', 'forbidden');
 
   // Requiring JSON makes any cross-site browser request a CORS preflight,
   // which this route never answers, so other sites cannot call it via a visitor.
   if (!req.headers.get('content-type')?.toLowerCase().startsWith('application/json')) {
-    return json(415, { error: 'unsupported_media_type' });
+    return done(json(415, { error: 'unsupported_media_type' }), 'rejected', 'unsupported_media_type');
   }
 
   if (!process.env.ANTHROPIC_API_KEY) return json(503, { error: 'not_configured' });
 
+  const config = await getConfig();
   const dev = device(req);
   const cookieHeader: Record<string, string> = dev.cookie ? { 'Set-Cookie': dev.cookie } : {};
-  const keys = { device: dev.id, ip: clientIp(req), all: 'all' };
+  const ip = clientIp(req);
+  const keys = { device: dev.id, ip, all: 'all' };
+  trace.device = pseudonym('device', dev.id);
+  trace.ip = pseudonym('ip', ip);
+
+  // Paused requests are not counted: the visitor did nothing wrong.
+  const paused = await pausedReason(config);
+  if (paused) return done(json(503, { error: 'paused', reason: paused }, cookieHeader), 'paused', paused);
 
   // Every request counts, valid or not, but only once it passes every limit:
   // a rejected request must not use up an honest visitor's quota.
-  for (const { by, scope, limiter } of LIMITS) {
-    const r = limiter.check(keys[by]);
+  for (const { by, scope, limiter, max } of LIMITS) {
+    const r = limiter.check(keys[by], max?.(config));
     if (!r.ok) {
-      return json(
-        429,
-        { error: 'rate_limited', scope, retryAfter: r.retryAfterSec },
-        { ...cookieHeader, 'Retry-After': String(r.retryAfterSec) },
+      return done(
+        json(
+          429,
+          { error: 'rate_limited', scope, retryAfter: r.retryAfterSec },
+          { ...cookieHeader, 'Retry-After': String(r.retryAfterSec) },
+        ),
+        'rate_limited',
+        `${by}_${scope}`,
       );
     }
   }
   for (const { by, limiter } of LIMITS) limiter.record(keys[by]);
 
+  const reject = (status: number, data: Record<string, unknown>) =>
+    done(json(status, data, cookieHeader), 'rejected', String(data.error));
+
+  const { bodyBytes } = caps(config);
   const declared = Number(req.headers.get('content-length') ?? 0);
-  if (declared > MAX_BODY_BYTES) return json(413, { error: 'too_large' }, cookieHeader);
+  if (declared > bodyBytes) return reject(413, { error: 'too_large' });
   const text = await req.text().catch(() => '');
-  if (Buffer.byteLength(text) > MAX_BODY_BYTES) return json(413, { error: 'too_large' }, cookieHeader);
+  if (Buffer.byteLength(text) > bodyBytes) return reject(413, { error: 'too_large' });
 
   let body: { messages?: unknown; sig?: unknown };
   try {
     body = JSON.parse(text);
   } catch {
-    return json(400, { error: 'bad_request' }, cookieHeader);
+    return reject(400, { error: 'bad_request' });
   }
 
-  const turns = parseTurns(body?.messages);
-  if (turns === 'too_long') return json(400, { error: 'too_long', max: MAX_QUESTION_CHARS }, cookieHeader);
-  if (!turns) return json(400, { error: 'bad_request' }, cookieHeader);
+  const turns = parseTurns(body?.messages, config);
+  if (turns === 'too_long') return reject(400, { error: 'too_long', max: config.maxQuestionChars });
+  if (turns === 'too_many_questions') return reject(400, { error: 'too_many_questions', max: config.maxQuestions });
+  if (!turns) return reject(400, { error: 'bad_request' });
   if (turns.length > 1) {
     const sig = typeof body.sig === 'string' && body.sig.length < 100 ? body.sig : '';
-    if (!safeEqual(sig, signHistory(turns.slice(0, -1)))) return json(400, { error: 'bad_history' }, cookieHeader);
+    if (!safeEqual(sig, signHistory(turns.slice(0, -1)))) return reject(400, { error: 'bad_history' });
   }
+
+  const question = turns[turns.length - 1].content;
+  trace.model = config.model;
+  trace.effort = config.effort;
+  trace.question = (turns.length + 1) / 2;
+  trace.chars = question.length;
+  if (config.logContent) trace.q = question;
 
   const stream = getClient().messages.stream(
     {
-      model: MODEL,
-      max_tokens: MAX_OUTPUT_TOKENS,
-      output_config: { effort: 'low' },
+      model: config.model,
+      max_tokens: config.maxOutputTokens,
+      output_config: { effort: config.effort },
       // The system prompt is identical on every request, so cache it.
       system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
       messages: turns,
@@ -215,15 +300,26 @@ export async function POST(req: Request) {
     { signal: req.signal },
   );
 
+  // Record once the stream has finished, whichever way it ends.
+  let finish!: () => void;
+  const finished = new Promise<void>(resolve => (finish = resolve));
+  schedule(async () => {
+    await finished;
+    await recordTrace(trace);
+  });
+
   const encoder = new TextEncoder();
   const body$ = new ReadableStream<Uint8Array>({
     async start(controller) {
       let answer = '';
       const emit = (s: string) => {
         const clean = s.replaceAll(SIG_MARK, '');
+        if (clean && trace.ttftMs === undefined) trace.ttftMs = Math.round(performance.now() - started);
         answer += clean;
         controller.enqueue(encoder.encode(clean));
       };
+      trace.outcome = 'answered';
+      trace.status = 200;
 
       try {
         for await (const event of stream) {
@@ -232,26 +328,52 @@ export async function POST(req: Request) {
           }
         }
         const final = await stream.finalMessage();
+        const u = final.usage;
+        trace.tokens = {
+          input: u.input_tokens,
+          output: u.output_tokens,
+          cacheRead: u.cache_read_input_tokens ?? 0,
+          cacheWrite: u.cache_creation_input_tokens ?? 0,
+        };
+        trace.costUsd = costUsd(config.model, trace.tokens);
+        trace.stopReason = final.stop_reason ?? undefined;
+        trace.requestId = stream.request_id ?? undefined;
+
         if (final.stop_reason === 'refusal' || !answer) {
-          emit((answer ? '\n\n' : '') + "I can't help with that one. For anything else, email Bân at tranvangiaban@gmail.com.");
+          trace.outcome = 'refused';
+          emit((answer ? '\n\n' : '') + `I can't help with that one. For anything else, email Bân at ${CONTACT}.`);
         } else if (final.stop_reason === 'max_tokens') {
           emit('…');
         }
       } catch (err) {
-        if (req.signal.aborted) return controller.close();
+        trace.requestId = stream.request_id ?? undefined;
+        if (req.signal.aborted) {
+          trace.outcome = 'aborted';
+          trace.durationMs = Math.round(performance.now() - started);
+          finish();
+          return controller.close();
+        }
+        trace.outcome = 'error';
+        trace.reason = err instanceof Anthropic.APIError ? `api_${err.status ?? 'connection'}` : 'stream_failed';
         // Log status only: never the visitor's text, never anything credential-like.
         console.error('[chat]', err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : 'stream failed');
-        emit((answer ? '\n\n' : '') + 'Sorry, the assistant is unavailable right now. You can email Bân at tranvangiaban@gmail.com.');
+        emit((answer ? '\n\n' : '') + `Sorry, the assistant is unavailable right now. You can email Bân at ${CONTACT}.`);
       }
 
       const signed = answer.trim();
-      if (signed && signed.length <= MAX_ANSWER_CHARS) {
+      if (config.logContent) trace.a = signed.slice(0, 2_000);
+      if (signed && signed.length <= caps(config).answerChars) {
         controller.enqueue(encoder.encode(SIG_MARK + signHistory([...turns, { role: 'assistant', content: signed }])));
       }
+      trace.durationMs = Math.round(performance.now() - started);
       controller.close();
+      finish();
     },
     cancel() {
       stream.abort();
+      trace.outcome = 'aborted';
+      trace.durationMs = Math.round(performance.now() - started);
+      finish();
     },
   });
 

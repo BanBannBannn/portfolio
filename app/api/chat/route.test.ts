@@ -55,6 +55,8 @@ afterAll(() => new Promise<void>(resolve => api.close(() => resolve())));
 // ---- helpers -----------------------------------------------------------------
 
 let POST: (req: Request) => Promise<Response>;
+let GET: () => Promise<Response>;
+let telemetry: typeof import('../../../lib/chat/telemetry');
 let clock = Date.parse('2026-01-01T00:00:00Z');
 
 beforeEach(async () => {
@@ -65,9 +67,22 @@ beforeEach(async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(clock);
   vi.resetModules();
-  ({ POST } = await import('./route'));
+  ({ POST, GET } = await import('./route'));
+  telemetry = await import('../../../lib/chat/telemetry');
+  vi.spyOn(console, 'log').mockImplementation(() => {}); // trace lines
+  vi.spyOn(console, 'error').mockImplementation(() => {});
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
+
+/** Traces are recorded after the response; give that a moment. */
+async function traces() {
+  await new Promise(r => setTimeout(r, 20));
+  return (await telemetry.readDashboard(1)).traces;
+}
 
 function wait(ms: number) {
   clock = Date.now() + ms;
@@ -229,7 +244,7 @@ describe('signed history', () => {
     expect(apiCalls).toBe(0);
   });
 
-  it('allows 6 questions per conversation and rejects the 7th', async () => {
+  it('allows 6 questions per conversation and rejects the 7th as too_many_questions', async () => {
     const ip = freshIp();
     let cookie: string | undefined;
     let sig = '';
@@ -246,7 +261,9 @@ describe('signed history', () => {
     }
     wait(3_500); // stay under the IP burst limit (3 per 10s)
     messages.push(q('question 7'));
-    expect((await call({ messages, sig }, { ip, cookie })).status).toBe(400);
+    const res = await call({ messages, sig }, { ip, cookie });
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: 'too_many_questions', max: 6 });
   });
 });
 
@@ -334,5 +351,125 @@ describe('rate limits', () => {
   it('instance: 300 per hour across all visitors', async () => {
     for (let i = 0; i < 300; i++) expect((await call('{bad')).status).toBe(400);
     expect((await limited(await call('{bad'))).scope).toBe('limit');
+  });
+});
+
+describe('settings from env vars', () => {
+  it('GET reports the live settings to the chat UI', async () => {
+    vi.stubEnv('CHAT_MAX_QUESTIONS', '3');
+    vi.stubEnv('CHAT_MAX_QUESTION_CHARS', '120');
+    expect(await (await GET()).json()).toEqual({ enabled: true, maxQuestions: 3, maxQuestionChars: 120, logContent: false });
+  });
+
+  it('uses the configured model, effort and answer length', async () => {
+    vi.stubEnv('CHAT_MODEL', 'claude-sonnet-5-5');
+    vi.stubEnv('CHAT_EFFORT', 'medium');
+    vi.stubEnv('CHAT_MAX_OUTPUT_TOKENS', '512');
+    await (await call({ messages: [q('hi')] })).text();
+    expect(lastRequest).toMatchObject({ model: 'claude-sonnet-5-5', max_tokens: 512, output_config: { effort: 'medium' } });
+  });
+
+  it('applies a lower question cap and length', async () => {
+    vi.stubEnv('CHAT_MAX_QUESTIONS', '1');
+    vi.stubEnv('CHAT_MAX_QUESTION_CHARS', '50');
+    expect(await (await call({ messages: [q('x'.repeat(51))] })).json()).toEqual({ error: 'too_long', max: 50 });
+    const r = await (await call({ messages: [q('hi'), a('hello'), q('again')], sig: 'x' })).json();
+    expect(r).toEqual({ error: 'too_many_questions', max: 1 });
+  });
+
+  it('applies configured rate limits', async () => {
+    vi.stubEnv('CHAT_DEVICE_PER_HOUR', '2');
+    const cookie = deviceCookie(await call('{bad'));
+    wait(2_000);
+    expect((await call('{bad', { cookie })).status).toBe(400);
+    wait(2_000);
+    expect((await call('{bad', { cookie })).status).toBe(429);
+  });
+});
+
+describe('pausing', () => {
+  it('CHAT_ENABLED=false pauses the chat without calling the API or using quota', async () => {
+    vi.stubEnv('CHAT_ENABLED', 'false');
+    const res = await call({ messages: [q('hi')] });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'paused', reason: 'disabled' });
+    expect(apiCalls).toBe(0);
+    expect((await (await GET()).json()).enabled).toBe(false);
+  });
+
+  it('pauses once the daily budget is spent', async () => {
+    vi.stubEnv('CHAT_DAILY_BUDGET_USD', '0.01');
+    reply.parts = ['ok'];
+    // Spend $0.01 in one (pretend) answer.
+    await telemetry.recordTrace({
+      id: 'x', at: new Date().toISOString(), outcome: 'answered', status: 200, durationMs: 1, costUsd: 0.01,
+    });
+    const res = await call({ messages: [q('hi')] });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({ error: 'paused', reason: 'budget' });
+    expect(apiCalls).toBe(0);
+  });
+
+  it('a budget of 0 means no cap', async () => {
+    vi.stubEnv('CHAT_DAILY_BUDGET_USD', '0');
+    vi.stubEnv('CHAT_MONTHLY_BUDGET_USD', '0');
+    await telemetry.recordTrace({ id: 'x', at: new Date().toISOString(), outcome: 'answered', status: 200, durationMs: 1, costUsd: 50 });
+    expect((await call({ messages: [q('hi')] })).status).toBe(200);
+  });
+});
+
+describe('traces', () => {
+  it('records tokens, cost, timings and position in the chat, without visitor text by default', async () => {
+    await (await call({ messages: [q('What stack?')] })).text();
+    const [t] = await traces();
+    expect(t).toMatchObject({
+      outcome: 'answered', status: 200, model: 'claude-haiku-5-5', effort: 'low', question: 1, chars: 11,
+      tokens: { input: 20, output: 12, cacheRead: 0, cacheWrite: 0 }, stopReason: 'end_turn',
+    });
+    expect(t.costUsd).toBeCloseTo((20 * 0.1 + 12 * 0.5) / 1e6, 12);
+    expect(t.ttftMs).toBeGreaterThanOrEqual(0);
+    expect(t.durationMs).toBeGreaterThanOrEqual(t.ttftMs!);
+    expect(t.q).toBeUndefined();
+    expect(t.a).toBeUndefined();
+    expect(t.ip).toMatch(/^[\w-]{10}$/);
+  });
+
+  it('stores the question and answer when CHAT_LOG_CONTENT is on', async () => {
+    vi.stubEnv('CHAT_LOG_CONTENT', 'true');
+    await (await call({ messages: [q('What stack?')] })).text();
+    const [t] = await traces();
+    expect(t.q).toBe('What stack?');
+    expect(t.a).toBe('Bân works with Spring Boot.');
+    expect((await (await GET()).json()).logContent).toBe(true);
+  });
+
+  it('records rejections, rate limits and API errors with a reason', async () => {
+    await call({ messages: [q('hi')] }, { origin: 'https://evil.example' });
+    const ip = freshIp();
+    for (let i = 0; i < 4; i++) await call('{bad', { ip });
+    reply.status = 500;
+    await (await call({ messages: [q('hi')] })).text();
+
+    const t = await traces();
+    expect(t.map(x => `${x.outcome}:${x.reason ?? ''}`)).toEqual([
+      'error:api_500', 'rate_limited:ip_burst', 'rejected:bad_request', 'rejected:bad_request', 'rejected:bad_request', 'rejected:forbidden',
+    ]);
+  });
+
+  it('marks an answer cut short by the visitor as aborted', async () => {
+    reply.parts = Array.from({ length: 200 }, (_, i) => `chunk ${i} `);
+    const controller = new AbortController();
+    const res = await POST(new Request('http://localhost/api/chat', {
+      method: 'POST',
+      headers: { host: 'localhost', 'content-type': 'application/json', 'x-real-ip': freshIp() },
+      body: JSON.stringify({ messages: [q('long one')] }),
+      signal: controller.signal,
+    }));
+    const reader = res.body!.getReader();
+    await reader.read();
+    await reader.cancel();
+    controller.abort();
+    const [t] = await traces();
+    expect(t.outcome).toBe('aborted');
   });
 });
