@@ -1,5 +1,15 @@
 const roles = [
   {
+    period: 'May 2026 – Present',
+    company: 'VinSmart Future',
+    title: 'AI Engineer Trainee',
+    bullets: [
+      'Joined as an AI engineer intern in May 2026 and moved to a full-time trainee role on 20 July 2026.',
+      'Currently on an elder-care (nursing home) platform, where the core is built as .NET microservices in C#.',
+      'Build the Angular frontend for the same platform, so one person can follow a feature from the service to the screen.',
+    ],
+  },
+  {
     period: 'Sep 2025 – Apr 2026',
     company: 'HANEXT Technology',
     title: 'Software Engineer',
