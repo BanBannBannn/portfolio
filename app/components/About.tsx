@@ -16,6 +16,13 @@ export default function About() {
             I pick the datastore to fit the problem: PostgreSQL or SQL Server when the data has
             shape, MongoDB when it doesn&apos;t, Qdrant when it needs to be searched by meaning.
           </p>
+          <p>
+            Most of what I know, I learned from people who chose to publish their work: docs,
+            answered issues, the source of the libraries I use every day. Code is meant to be
+            shared and knowledge belongs to everyone, so I open-source my projects wherever I
+            can. Every project on this page, this site and its AI chat included, links to its
+            source, so you can see how it was built, not only how it looks.
+          </p>
         </div>
       </div>
     </section>
