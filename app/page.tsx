@@ -7,6 +7,10 @@ import Contact    from './components/Contact';
 import Footer     from './components/Footer';
 import Chat       from './components/Chat';
 
+// Re-render every 5 minutes so the project "Live" labels follow real health
+// checks (lib/health.ts). Must be a literal; keep it equal to HEALTH_REVALIDATE.
+export const revalidate = 300;
+
 export default function Home() {
   return (
     <>

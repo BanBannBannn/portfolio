@@ -122,8 +122,8 @@ Real, present in the repository:
 - `public/portrait.jpg` — a real photograph of the owner.
 - Real contact routes: tranvangiaban@gmail.com, +84 967 174 978,
   github.com/BanBannBannn, linkedin.com/in/bantrandev.
-- Six projects with real repositories; GameHub, SmartMenuVibe and DevToolBox AI
-  additionally have live deployments on Vercel.
+- Six projects with real repositories; Bàn Tròn, GameHub, SmartMenuVibe and
+  DevToolBox AI additionally have live deployments on Vercel.
 - Two real positions: HANEXT Technology (Sep 2025 – Apr 2026, Software
   Engineer) and FPT Software (Jan – Apr 2024, Software Engineer Intern).
 - A university capstone, WareEase, a warehouse inventory API with role-based
