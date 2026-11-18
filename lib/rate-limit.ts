@@ -6,7 +6,7 @@
  *
  * Best effort only: each serverless instance has its own memory. It stops a
  * single visitor or a naive script, which is the common case. The hard ceiling
- * on cost is the monthly spend limit set in the Anthropic Console.
+ * on cost is OpenRouter's own free-model request caps (and, for paid models, a credit limit on the key).
  */
 export function createRateLimiter(limit: number, windowMs: number) {
   const hits = new Map<string, number[]>();
@@ -19,11 +19,12 @@ export function createRateLimiter(limit: number, windowMs: number) {
   };
 
   return {
-    check(key: string): { ok: true } | { ok: false; retryAfterSec: number } {
+    /** `max` overrides the limit for this check, so it can change at runtime. */
+    check(key: string, max = limit): { ok: true } | { ok: false; retryAfterSec: number } {
       const now = Date.now();
       const r = recent(key, now);
-      return r.length >= limit
-        ? { ok: false, retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - r[0])) / 1000)) }
+      return r.length >= max
+        ? { ok: false, retryAfterSec: Math.max(1, Math.ceil((windowMs - (now - r[r.length - max])) / 1000)) }
         : { ok: true };
     },
 

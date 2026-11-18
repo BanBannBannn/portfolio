@@ -103,4 +103,4 @@ A pill button fixed bottom-right ("Ask AI about me") opens a 400×600 panel on
 desktop and a full-screen sheet below 560px. It never opens on its own. The
 panel states that an AI answers and can be wrong, and points to email. Answers
 come from `content/profile.md` only, via `app/api/chat/route.ts`
-(Claude Haiku 5.5).
+(a free NVIDIA Nemotron model via OpenRouter).
