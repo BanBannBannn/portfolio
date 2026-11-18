@@ -52,15 +52,15 @@ const projects: Project[] = [
   {
     kind: 'Capstone · 4 months',
     name: 'WareEase',
-    desc: 'A warehouse inventory API with role-based access control and fine-grained permissions, deployed through a CI/CD pipeline.',
-    tech: ['ASP.NET Core', 'EF Core', 'SQL Server', 'JWT', 'CI/CD'],
+    desc: 'A warehouse management API: products and batches with expiry dates, stock levels, goods requests, receive, issue and internal transfer notes, stocktakes and adjustments, and a dashboard. Layered ASP.NET Core 8 on EF Core, with JWT access and refresh tokens in httpOnly cookies, group-based permissions, a Docker image, and GitHub Actions that build it and redeploy. My part: the permission middleware and the endpoints it protects, quantity validation across the request and note flows, and the dashboard figures.',
+    tech: ['ASP.NET Core 8', 'EF Core', 'SQL Server', 'JWT', 'Docker', 'GitHub Actions'],
     github: 'https://github.com/ware-ease/we-api',
   },
   {
     kind: 'Team project · 4 months',
     name: 'Smart Menu',
-    desc: 'A restaurant menu backend that recognises dishes from photos, using AWS Rekognition and S3, hosted on Azure. SmartMenuVibe later grew out of it.',
-    tech: ['ASP.NET Core', 'SQL Server', 'AWS Rekognition', 'S3', 'Azure'],
+    desc: 'A restaurant menu system that reads a customer\u2019s age, gender and mood from a camera photo with AWS Rekognition, then recommends the menu configured for that segment and time of day. Brands subscribe to plans and pay through PayOS; a React admin portal and an Expo mobile app sit on the .NET API, hosted on Azure. My part: menu recommendation, subscription limits and payment confirmation, and the brand dashboard API. SmartMenuVibe later grew out of it.',
+    tech: ['ASP.NET Core 8', 'SQL Server', 'AWS Rekognition', 'S3', 'PayOS', 'Azure'],
     github: 'https://github.com/BanBannBannn/SmartMenu',
   },
 ];
