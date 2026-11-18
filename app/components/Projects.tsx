@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 type Project = {
   kind: string;
   name: string;
@@ -5,6 +7,8 @@ type Project = {
   tech: string[];
   github: string;
   demo?: string;
+  /** Screenshot of the live demo, 1280×800, in /public/shots. */
+  shot?: { src: string; alt: string };
 };
 
 const projects: Project[] = [
@@ -15,6 +19,7 @@ const projects: Project[] = [
     tech: ['Next.js', 'React 19', 'TypeScript', 'Zustand', 'PWA'],
     github: 'https://github.com/BanBannBannn/gamehub',
     demo: 'https://gamehub-board.vercel.app/',
+    shot: { src: '/shots/gamehub.jpg', alt: 'GameHub home page: a Sudoku board next to the headline "Rèn tư duy mỗi ngày".' },
   },
   {
     kind: 'Personal',
@@ -23,6 +28,7 @@ const projects: Project[] = [
     tech: ['Next.js', 'React 19', 'Supabase Realtime', 'Azure Face'],
     github: 'https://github.com/BanBannBannn/SmartMenuVibe',
     demo: 'https://smart-menu-vibe.vercel.app/',
+    shot: { src: '/shots/smartmenuvibe.jpg', alt: 'SmartMenuVibe home page: "Menu đẹp hơn. Phục vụ nhanh hơn." beside an illustration of a digital menu.' },
   },
   {
     kind: 'Personal',
@@ -31,6 +37,7 @@ const projects: Project[] = [
     tech: ['Next.js 16', 'React 19', 'TypeScript', 'Tailwind'],
     github: 'https://github.com/BanBannBannn/devtoolbox-ai',
     demo: 'https://devtoolbox-ai-murex.vercel.app/',
+    shot: { src: '/shots/devtoolbox-ai.jpg', alt: 'DevToolBox AI home page: "Write, share, and explore developer knowledge with AI" with a preview of the knowledge platform.' },
   },
   {
     kind: 'Capstone · 4 months',
@@ -55,7 +62,7 @@ export default function Projects() {
         <h2 className="h2" id="projects-h">Projects</h2>
 
         <div className="projects">
-          {projects.map(({ kind, name, desc, tech, github, demo }) => (
+          {projects.map(({ kind, name, desc, tech, github, demo, shot }) => (
             <article key={name} className="project">
               <div className="project-head">
                 <h3 className="project-name">{name}</h3>
@@ -64,6 +71,17 @@ export default function Projects() {
                   {kind}
                 </span>
               </div>
+
+              {shot && (
+                <Image
+                  src={shot.src}
+                  alt={shot.alt}
+                  width={1280}
+                  height={800}
+                  sizes="(min-width: 880px) 700px, 100vw"
+                  className="project-shot"
+                />
+              )}
 
               <p className="project-desc">{desc}</p>
               <p className="stack">{tech.join(' · ')}</p>
