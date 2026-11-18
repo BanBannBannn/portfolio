@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { checkAll } from '../../lib/health';
 
 type Project = {
   kind: string;
@@ -64,19 +65,28 @@ const projects: Project[] = [
   },
 ];
 
-export default function Projects() {
+export default async function Projects() {
+  // Server-side, cached; see lib/health.ts. The label reflects a real check.
+  const up = await checkAll(projects.flatMap((p) => (p.demo ? [p.demo] : [])));
+
   return (
     <section id="projects" className="section" aria-labelledby="projects-h">
       <div className="wrap section-inner">
         <h2 className="h2" id="projects-h">Projects</h2>
 
         <div className="projects">
-          {projects.map(({ kind, name, desc, tech, github, demo, shot }) => (
+          {projects.map(({ kind, name, desc, tech, github, demo, shot }) => {
+            const live = demo ? up[demo] : false;
+            return (
             <article key={name} className="project">
               <div className="project-head">
                 <h3 className="project-name">{name}</h3>
                 <span className="project-kind">
-                  {demo && <span className="live">Live</span>}
+                  {demo && (
+                    <span className={live ? 'live' : 'live live-off'}>
+                      {live ? 'Live' : 'Demo offline'}
+                    </span>
+                  )}
                   {kind}
                 </span>
               </div>
@@ -96,7 +106,7 @@ export default function Projects() {
               <p className="stack">{tech.join(' · ')}</p>
 
               <div className="project-links">
-                {demo && (
+                {demo && live && (
                   <a href={demo} className="a" target="_blank" rel="noreferrer">
                     Open demo<span className="arrow" aria-hidden="true">↗</span>
                   </a>
@@ -106,7 +116,8 @@ export default function Projects() {
                 </a>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
