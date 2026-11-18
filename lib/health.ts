@@ -10,7 +10,7 @@
  */
 
 /** Seconds between re-checks. Also the page's `revalidate`. */
-export const HEALTH_REVALIDATE = 300;
+export const HEALTH_REVALIDATE = 3600;
 
 // Generous on purpose: the check runs in the background when the page is
 // re-rendered, so visitors never wait for it, and DevToolBox AI answers in ~7s.
