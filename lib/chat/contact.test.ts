@@ -9,7 +9,7 @@ let store: Awaited<ReturnType<typeof startFakeUpstash>>;
 beforeAll(async () => { store = await startFakeUpstash(); });
 afterAll(() => store.close());
 beforeEach(() => {
-  vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+  vi.stubEnv('OPENROUTER_API_KEY', 'test-key');
   store.reset();
   resetContactState();
 });
@@ -26,10 +26,10 @@ const draft: Draft = { name: 'Linh Tran', email: 'linh@company.example', topic: 
 
 describe('tool definition', () => {
   it('has no field for the recipient: the model cannot choose who gets the mail', () => {
-    const props = Object.keys((CONTACT_TOOL.input_schema as { properties: object }).properties);
+    const props = Object.keys((CONTACT_TOOL.function.parameters as { properties: object }).properties);
     expect(props.sort()).toEqual(['message', 'topic', 'visitor_email', 'visitor_name']);
-    expect(CONTACT_TOOL.input_schema).toMatchObject({ additionalProperties: false });
-    expect(CONTACT_TOOL.strict).toBe(true);
+    expect(CONTACT_TOOL.function.parameters).toMatchObject({ additionalProperties: false });
+    expect(CONTACT_TOOL.type).toBe('function');
   });
 });
 
@@ -111,7 +111,7 @@ describe('draft tokens', () => {
 
   it('a token signed with another key does not verify', () => {
     const t = signDraft(draft, 'device-a');
-    vi.stubEnv('ANTHROPIC_API_KEY', 'rotated-key');
+    vi.stubEnv('OPENROUTER_API_KEY', 'rotated-key');
     expect(verifyDraft(t, 'device-a').ok).toBe(false);
   });
 });

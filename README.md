@@ -51,13 +51,13 @@ Follow these instructions to get a copy of the project up and running on your lo
 ## ✅ Tests and CI
 
 ```bash
-npm test        # Vitest: rate limiter + the /api/chat route against a local stand-in for the Claude API
+npm test        # Vitest: rate limiter + the /api/chat route against a local stand-in for the OpenRouter API
 npm run lint
 npm run build   # also type-checks
 ```
 
-The route tests need no API key or network: they start a small fake Messages API
-and point the real Anthropic SDK at it.
+The route tests need no API key or network: they start a small fake chat
+completions API and point the real client (`lib/chat/openrouter.ts`) at it.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs lint, tests and build on every pull
 request and every push to `main`. Deploys are done by Vercel's Git integration.

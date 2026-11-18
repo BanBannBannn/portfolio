@@ -32,8 +32,10 @@ describe('parseValue', () => {
   });
 
   it('only accepts listed options', () => {
-    expect(parseValue('model', 'claude-sonnet-5-5')).toBe('claude-sonnet-5-5');
+    expect(parseValue('model', 'nvidia/nemotron-3.5-lightning:free')).toBe('nvidia/nemotron-3.5-lightning:free');
     expect(parseValue('model', 'gpt-5')).toBeUndefined();
+    // a paid sibling is not selectable: the chat is meant to cost nothing
+    expect(parseValue('model', 'nvidia/nemotron-3-super-120b-a12b')).toBeUndefined();
   });
 
   it('clamps numbers into range and rounds them', () => {

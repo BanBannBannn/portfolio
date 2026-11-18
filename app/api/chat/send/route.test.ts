@@ -36,7 +36,7 @@ let telemetry: typeof import('../../../../lib/chat/telemetry');
 beforeEach(async () => {
   sent = [];
   resendStatus = 200;
-  vi.stubEnv('ANTHROPIC_API_KEY', 'test-key');
+  vi.stubEnv('OPENROUTER_API_KEY', 'test-key');
   vi.stubEnv('RESEND_API_KEY', 're_test');
   vi.stubEnv('CONTACT_TO_EMAIL', 'owner@example.com');
   vi.stubEnv('RESEND_API_URL', `http://127.0.0.1:${(resend.address() as AddressInfo).port}/emails`);

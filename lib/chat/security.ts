@@ -1,6 +1,6 @@
 /**
  * Request checks and signatures shared by the chat routes.
- * Every signature uses one secret derived from ANTHROPIC_API_KEY, with a
+ * Every signature uses one secret derived from OPENROUTER_API_KEY, with a
  * different `purpose` per use so a signature for one thing never verifies
  * as another.
  */
@@ -9,7 +9,7 @@ import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 export const DEVICE_COOKIE = 'chat_device';
 
 export function hmac(purpose: string, data: string) {
-  const key = createHmac('sha256', process.env.ANTHROPIC_API_KEY!).update('portfolio-chat').digest();
+  const key = createHmac('sha256', process.env.OPENROUTER_API_KEY!).update('portfolio-chat').digest();
   return createHmac('sha256', key).update(`${purpose}\n${data}`).digest('base64url');
 }
 

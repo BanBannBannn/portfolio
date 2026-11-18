@@ -7,7 +7,13 @@
  */
 import { command, hasStore, pipeline } from './store';
 
-export const MODELS = ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-opus-5-5'] as const;
+/** Free NVIDIA models on OpenRouter (https://openrouter.ai/models?q=nvidia), all with tool calling. */
+export const MODELS = [
+  'nvidia/nemotron-3-ultra-550b-a55b:free',
+  'nvidia/nemotron-3.5-super-vl:free',
+  'nvidia/nemotron-3.5-lightning:free',
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free',
+] as const;
 export const EFFORTS = ['low', 'medium', 'high'] as const;
 
 type NumberField = { type: 'number'; min: number; max: number; step?: number };
@@ -24,11 +30,11 @@ export const FIELDS = {
   },
   model: {
     env: 'CHAT_MODEL', type: 'select', options: MODELS, group: 'General', label: 'Model',
-    help: 'Haiku is the cheapest by far. Sonnet costs about 20x more, Opus about 40x.',
+    help: 'All free. Ultra is the most capable and the slowest; Lightning is the fastest and the least careful. Changing it needs no redeploy.',
   },
   effort: {
     env: 'CHAT_EFFORT', type: 'select', options: EFFORTS, group: 'General', label: 'Effort',
-    help: 'How hard the model thinks before answering. Thinking is billed as output tokens.',
+    help: 'How hard the model thinks before answering. Thinking uses up the answer token limit below.',
   },
   logContent: {
     env: 'CHAT_LOG_CONTENT', type: 'boolean', group: 'General', label: 'Save questions and answers',
@@ -44,7 +50,7 @@ export const FIELDS = {
   },
   maxOutputTokens: {
     env: 'CHAT_MAX_OUTPUT_TOKENS', type: 'number', min: 256, max: 4096, group: 'Per conversation', label: 'Max answer tokens',
-    help: 'Includes thinking. Answers that hit it end with "…".',
+    help: 'Includes thinking. Answers that hit it end with "…"; if thinking alone uses it all, the visitor gets an apology.',
   },
   devicePerHour: { env: 'CHAT_DEVICE_PER_HOUR', type: 'number', min: 1, max: 1000, group: 'Rate limits', label: 'Per device, per hour', help: '' },
   devicePerDay: { env: 'CHAT_DEVICE_PER_DAY', type: 'number', min: 1, max: 5000, group: 'Rate limits', label: 'Per device, per day', help: '' },
@@ -68,11 +74,11 @@ export const FIELDS = {
   },
   dailyBudgetUsd: {
     env: 'CHAT_DAILY_BUDGET_USD', type: 'number', min: 0, max: 100, step: 0.01, group: 'Budget', label: 'Daily budget (USD)',
-    help: 'When today\'s estimated spend reaches this, the chat pauses until midnight UTC. 0 = no daily cap.',
+    help: 'Only matters for paid models: the selectable models are free, so spend stays $0. When today\'s estimated spend reaches this, the chat pauses until midnight UTC. 0 = no daily cap.',
   },
   monthlyBudgetUsd: {
     env: 'CHAT_MONTHLY_BUDGET_USD', type: 'number', min: 0, max: 1000, step: 0.01, group: 'Budget', label: 'Monthly budget (USD)',
-    help: 'Same, per calendar month. Also set a spend limit in the Anthropic Console: that one is exact.',
+    help: 'Same, per calendar month.',
   },
 } as const satisfies Record<string, Field>;
 
@@ -99,12 +105,12 @@ export type ConfigKey = keyof ChatConfig;
 
 export const DEFAULTS: ChatConfig = {
   enabled: true,
-  model: 'claude-haiku-5-5',
+  model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
   effort: 'low',
   logContent: false,
   maxQuestions: 6,
   maxQuestionChars: 300,
-  maxOutputTokens: 1024,
+  maxOutputTokens: 2048,
   devicePerHour: 15,
   devicePerDay: 30,
   ipPerHour: 30,

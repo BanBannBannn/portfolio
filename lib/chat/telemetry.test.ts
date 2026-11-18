@@ -1,6 +1,15 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startFakeUpstash } from '../../test/fake-upstash';
-import { costUsd, getSpend, readDashboard, recordTrace, resetTelemetry, type Trace } from './telemetry';
+import { MODELS } from './config';
+import { costUsd, getSpend, PRICES, readDashboard, recordTrace, resetTelemetry, type Trace } from './telemetry';
+
+// Every selectable model is free, so give the cost maths a priced stand-in.
+const PAID = 'test/paid-model';
+PRICES[PAID] = { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 };
+
+it('estimates $0 for the free models', () => {
+  for (const m of MODELS) expect(costUsd(m, { input: 1e6, output: 1e6, cacheRead: 1e6, cacheWrite: 0 })).toBe(0);
+});
 
 let store: Awaited<ReturnType<typeof startFakeUpstash>>;
 beforeAll(async () => { store = await startFakeUpstash(); });
@@ -32,9 +41,9 @@ function trace(over: Partial<Trace> = {}): Trace {
     at: new Date().toISOString(),
     outcome: 'answered',
     status: 200,
-    model: 'claude-haiku-5-5',
+    model: PAID,
     tokens: { input: 30, output: 120, cacheRead: 2_000, cacheWrite: 0 },
-    costUsd: costUsd('claude-haiku-5-5', { input: 30, output: 120, cacheRead: 2_000, cacheWrite: 0 }),
+    costUsd: costUsd(PAID, { input: 30, output: 120, cacheRead: 2_000, cacheWrite: 0 }),
     ttftMs: 400,
     durationMs: 1_500,
     ...over,
@@ -42,9 +51,9 @@ function trace(over: Partial<Trace> = {}): Trace {
 }
 
 describe('costUsd', () => {
-  it('prices each token kind for Haiku 5.5', () => {
+  it('prices each token kind', () => {
     // 1M of each: $0.10 input + $0.50 output + $0.01 cache read + $0.125 cache write
-    expect(costUsd('claude-haiku-5-5', { input: 1e6, output: 1e6, cacheRead: 1e6, cacheWrite: 1e6 })).toBeCloseTo(0.735, 6);
+    expect(costUsd(PAID, { input: 1e6, output: 1e6, cacheRead: 1e6, cacheWrite: 1e6 })).toBeCloseTo(0.735, 6);
   });
 
   it('returns 0 for an unknown model rather than guessing', () => {

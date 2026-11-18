@@ -1,26 +1,40 @@
 /**
- * Runs the real route handler and the real Anthropic SDK against a local stand-in
- * for the Messages API, so no key or network is needed. Each test imports a
- * fresh copy of the route, which gives it empty rate limiters.
+ * Runs the real route handler and the real OpenRouter client against a local
+ * stand-in for the chat completions API, so no key or network is needed. Each
+ * test imports a fresh copy of the route, which gives it empty rate limiters.
  */
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const SIG_MARK = '\u001e';
+const DRAFT_MARK = '\u001d';
 
-// ---- stand-in Messages API --------------------------------------------------
+// ---- stand-in chat completions API ------------------------------------------
 
-type Reply = { status?: number; parts?: string[]; stopReason?: string; tools?: { name: string; input: unknown }[] };
+type Reply = {
+  status?: number;
+  parts?: string[];
+  stopReason?: string; // internal names; mapped to OpenAI finish reasons below
+  tools?: { name: string; input: unknown }[];
+  thinking?: string[]; // `reasoning` deltas, which the route must never show
+  streamError?: number; // an error chunk after the stream started
+  rawToolArgs?: string; // tool arguments sent as-is (to test invalid JSON)
+};
 let reply: Reply = {};
 let queue: Reply[] = []; // per-call replies, used before `reply`
 type ApiRequest = {
-  model: string; max_tokens: number; system: { text: string }[]; messages: { role: string; content: unknown }[];
-  tools?: { name: string; strict?: boolean }[]; tool_choice?: { type: string };
+  model: string; max_tokens: number; stream: boolean; reasoning?: { effort: string };
+  messages: { role: string; content: unknown; tool_calls?: { id: string; function: { name: string } }[]; tool_call_id?: string }[];
+  tools?: { type: string; function: { name: string } }[]; tool_choice?: string;
 };
 let lastRequest: ApiRequest | null = null;
 let requests: ApiRequest[] = [];
+let lastHeaders: http.IncomingHttpHeaders = {};
 let apiCalls = 0;
+
+const FINISH: Record<string, string> = { end_turn: 'stop', max_tokens: 'length', tool_use: 'tool_calls', refusal: 'content_filter' };
+const systemText = (r: ApiRequest) => r.messages[0].content as string;
 
 const globalReply = () => reply;
 const api = http.createServer((req, res) => {
@@ -28,42 +42,45 @@ const api = http.createServer((req, res) => {
   req.on('data', c => (raw += c));
   req.on('end', () => {
     apiCalls++;
+    lastHeaders = req.headers;
     lastRequest = JSON.parse(raw);
     requests.push(lastRequest!);
     const reply = queue.shift() ?? globalReply();
     if (reply.status && reply.status !== 200) {
-      res.writeHead(reply.status, { 'content-type': 'application/json', 'x-should-retry': 'false' });
-      return res.end(JSON.stringify({ type: 'error', error: { type: 'api_error', message: 'boom' } }));
+      res.writeHead(reply.status, { 'content-type': 'application/json' });
+      return res.end(JSON.stringify({ error: { code: reply.status, message: 'boom' } }));
     }
     res.writeHead(200, { 'content-type': 'text/event-stream' });
-    const ev = (type: string, data: object) => res.write(`event: ${type}\ndata: ${JSON.stringify({ type, ...data })}\n\n`);
-    ev('message_start', {
-      message: {
-        id: 'msg_test', type: 'message', role: 'assistant', model: lastRequest!.model, content: [],
-        stop_reason: null, stop_sequence: null, usage: { input_tokens: 20, output_tokens: 1 },
-      },
-    });
-    ev('content_block_start', { index: 0, content_block: { type: 'text', text: '' } });
+    const send = (obj: object) => res.write(`data: ${JSON.stringify({ id: 'gen-test', model: lastRequest!.model, ...obj })}\n\n`);
+    res.write(': OPENROUTER PROCESSING\n\n'); // a keep-alive comment
+    send({ choices: [{ index: 0, delta: { role: 'assistant', content: '' }, finish_reason: null }] });
+    for (const t of reply.thinking ?? []) send({ choices: [{ index: 0, delta: { reasoning: t }, finish_reason: null }] });
     for (const text of reply.parts ?? ['Bân works with ', 'Spring Boot.']) {
-      ev('content_block_delta', { index: 0, delta: { type: 'text_delta', text } });
+      if (text) send({ choices: [{ index: 0, delta: { content: text }, finish_reason: null }] });
     }
-    ev('content_block_stop', { index: 0 });
     (reply.tools ?? []).forEach((t, i) => {
-      ev('content_block_start', { index: i + 1, content_block: { type: 'tool_use', id: `toolu_${i}`, name: t.name, input: {} } });
-      ev('content_block_delta', { index: i + 1, delta: { type: 'input_json_delta', partial_json: JSON.stringify(t.input) } });
-      ev('content_block_stop', { index: i + 1 });
+      const args = reply.rawToolArgs ?? JSON.stringify(t.input);
+      const mid = Math.floor(args.length / 2);
+      const call = (extra: object) => send({ choices: [{ index: 0, delta: { tool_calls: [{ index: i, ...extra }] }, finish_reason: null }] });
+      call({ id: `call_${i}`, type: 'function', function: { name: t.name, arguments: args.slice(0, mid) } });
+      call({ function: { arguments: args.slice(mid) } }); // arguments arrive in pieces
     });
+    if (reply.streamError) {
+      send({ error: { code: reply.streamError, message: 'provider went away' }, choices: [{ index: 0, delta: { content: '' }, finish_reason: 'error' }] });
+      return res.end();
+    }
     const stop = reply.stopReason ?? (reply.tools?.length ? 'tool_use' : 'end_turn');
-    ev('message_delta', { delta: { stop_reason: stop, stop_sequence: null }, usage: { output_tokens: 12 } });
-    ev('message_stop', {});
+    send({ choices: [{ index: 0, delta: { content: '' }, finish_reason: FINISH[stop] }] });
+    send({ choices: [], usage: { prompt_tokens: 20, completion_tokens: 12, total_tokens: 32, cost: 0 } });
+    res.write('data: [DONE]\n\n');
     res.end();
   });
 });
 
 beforeAll(async () => {
   await new Promise<void>(resolve => api.listen(0, '127.0.0.1', resolve));
-  process.env.ANTHROPIC_API_KEY = 'test-key';
-  process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(api.address() as AddressInfo).port}`;
+  process.env.OPENROUTER_API_KEY = 'test-key';
+  process.env.OPENROUTER_BASE_URL = `http://127.0.0.1:${(api.address() as AddressInfo).port}/api/v1`;
 });
 afterAll(() => new Promise<void>(resolve => api.close(() => resolve())));
 
@@ -153,14 +170,14 @@ describe('request checks', () => {
   });
 
   it('reports not_configured without an API key', async () => {
-    const key = process.env.ANTHROPIC_API_KEY;
-    delete process.env.ANTHROPIC_API_KEY;
+    const key = process.env.OPENROUTER_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     try {
       const res = await call({ messages: [q('hi')] });
       expect(res.status).toBe(503);
       expect(await res.json()).toEqual({ error: 'not_configured' });
     } finally {
-      process.env.ANTHROPIC_API_KEY = key;
+      process.env.OPENROUTER_API_KEY = key;
     }
   });
 
@@ -200,14 +217,18 @@ describe('answers', () => {
     expect(sig).toMatch(/^[\w-]{20,}$/);
   });
 
-  it('sends the cached system prompt and the configured model', async () => {
+  it('sends the system prompt first, with the default model and key', async () => {
     await (await call({ messages: [q('What stack?')] })).text();
     expect(lastRequest).toMatchObject({
-      model: 'claude-haiku-5-5',
-      max_tokens: 1024,
-      system: [{ type: 'text', cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: 'What stack?' }],
+      model: 'nvidia/nemotron-3-ultra-550b-a55b:free',
+      max_tokens: 2048,
+      stream: true,
+      reasoning: { effort: 'low' },
+      messages: [{ role: 'system' }, { role: 'user', content: 'What stack?' }],
     });
+    expect(systemText(lastRequest!)).toContain('<profile>');
+    expect(lastRequest!.tools).toBeUndefined();
+    expect(lastHeaders.authorization).toBe('Bearer test-key');
   });
 
   it('removes signature marks the model emits, so it cannot forge a signature', async () => {
@@ -223,6 +244,43 @@ describe('answers', () => {
     reply.status = 500;
     const { text } = await answer(await call({ messages: [q('What stack?')] }));
     expect(text).toMatch(/unavailable right now/);
+  });
+
+  it('maps a provider 429 to a "busy" message and a distinct trace reason', async () => {
+    reply.status = 429;
+    const { text } = await answer(await call({ messages: [q('What stack?')] }));
+    expect(text).toMatch(/free model is busy/);
+    const [t] = await traces();
+    expect(t).toMatchObject({ outcome: 'error', reason: 'api_429' });
+  });
+
+  it('survives an error chunk in the middle of the stream, keeping what was already shown', async () => {
+    reply.streamError = 502;
+    const { text } = await answer(await call({ messages: [q('What stack?')] }));
+    expect(text).toMatch(/^Bân works with Spring Boot\.\n\nSorry, the assistant is unavailable/);
+  });
+
+  it('never shows the model\'s thinking', async () => {
+    reply.thinking = ['The user asks about the stack. Let me recall the profile...'];
+    const { text } = await answer(await call({ messages: [q('What stack?')] }));
+    expect(text).toBe('Bân works with Spring Boot.');
+  });
+
+  it('apologises when thinking used every token and there is no answer', async () => {
+    reply.parts = [];
+    reply.thinking = ['hmm '.repeat(50)];
+    reply.stopReason = 'max_tokens';
+    const { text } = await answer(await call({ messages: [q('Hard question')] }));
+    expect(text).toMatch(/ran out of room/);
+    expect((await traces())[0]).toMatchObject({ outcome: 'error', reason: 'out_of_tokens' });
+  });
+
+  it('says it cannot help when the provider filters the content', async () => {
+    reply.parts = [];
+    reply.stopReason = 'refusal';
+    const { text } = await answer(await call({ messages: [q('x')] }));
+    expect(text).toMatch(/can't help with that one/);
+    expect((await traces())[0].outcome).toBe('refused');
   });
 
   it('adds an ellipsis when the answer hits max_tokens', async () => {
@@ -379,11 +437,11 @@ describe('settings from env vars', () => {
   });
 
   it('uses the configured model, effort and answer length', async () => {
-    vi.stubEnv('CHAT_MODEL', 'claude-sonnet-5-5');
+    vi.stubEnv('CHAT_MODEL', 'nvidia/nemotron-3.5-lightning:free');
     vi.stubEnv('CHAT_EFFORT', 'medium');
     vi.stubEnv('CHAT_MAX_OUTPUT_TOKENS', '512');
     await (await call({ messages: [q('hi')] })).text();
-    expect(lastRequest).toMatchObject({ model: 'claude-sonnet-5-5', max_tokens: 512, output_config: { effort: 'medium' } });
+    expect(lastRequest).toMatchObject({ model: 'nvidia/nemotron-3.5-lightning:free', max_tokens: 512, reasoning: { effort: 'medium' } });
   });
 
   it('applies a lower question cap and length', async () => {
@@ -440,10 +498,10 @@ describe('traces', () => {
     await (await call({ messages: [q('What stack?')] })).text();
     const [t] = await traces();
     expect(t).toMatchObject({
-      outcome: 'answered', status: 200, model: 'claude-haiku-5-5', effort: 'low', question: 1, chars: 11,
+      outcome: 'answered', status: 200, model: 'nvidia/nemotron-3-ultra-550b-a55b:free', effort: 'low', question: 1, chars: 11, requestId: 'gen-test',
       tokens: { input: 20, output: 12, cacheRead: 0, cacheWrite: 0 }, stopReason: 'end_turn',
     });
-    expect(t.costUsd).toBeCloseTo((20 * 0.1 + 12 * 0.5) / 1e6, 12);
+    expect(t.costUsd).toBe(0); // free model
     expect(t.ttftMs).toBeGreaterThanOrEqual(0);
     expect(t.durationMs).toBeGreaterThanOrEqual(t.ttftMs!);
     expect(t.q).toBeUndefined();
@@ -492,14 +550,13 @@ describe('traces', () => {
 });
 
 describe('contact tool', () => {
-  const DRAFT_MARK = '\u001d';
   const good = { visitor_name: 'Linh', visitor_email: 'linh@company.example', topic: 'job_opportunity', message: 'We have a backend role. Call next week?' };
   const enableMail = () => {
     vi.stubEnv('RESEND_API_KEY', 're_test');
     vi.stubEnv('CONTACT_TO_EMAIL', 'owner@example.com');
   };
-  type ToolResult = { type: string; tool_use_id: string; is_error?: boolean; content: string };
-  const toolResults = (r: ApiRequest) => r.messages[r.messages.length - 1].content as ToolResult[];
+  const toolResults = (r: ApiRequest) => r.messages.filter(m => m.role === 'tool') as { role: 'tool'; tool_call_id: string; content: string }[];
+  const isError = (m: { content: string }) => m.content.startsWith('Error: ');
 
   async function parse(res: Response) {
     const raw = await res.text();
@@ -511,7 +568,7 @@ describe('contact tool', () => {
   it('is not offered when mail is not configured', async () => {
     await (await call({ messages: [q('hi')] })).text();
     expect(lastRequest!.tools).toBeUndefined();
-    expect(lastRequest!.system[0].text).not.toContain('draft_message_to_ban');
+    expect(systemText(lastRequest!)).not.toContain('draft_message_to_ban');
   });
 
   it('is not offered when the admin turns it off', async () => {
@@ -521,12 +578,12 @@ describe('contact tool', () => {
     expect(lastRequest!.tools).toBeUndefined();
   });
 
-  it('is offered as a strict tool, with instructions, when mail is configured', async () => {
+  it('is offered as a function tool, with instructions, when mail is configured', async () => {
     enableMail();
     await (await call({ messages: [q('hi')] })).text();
-    expect(lastRequest!.tools).toEqual([expect.objectContaining({ name: 'draft_message_to_ban', strict: true })]);
-    expect(lastRequest!.tool_choice).toEqual({ type: 'auto' });
-    expect(lastRequest!.system[0].text).toContain('Never say a message was sent');
+    expect(lastRequest!.tools).toEqual([expect.objectContaining({ type: 'function', function: expect.objectContaining({ name: 'draft_message_to_ban' }) })]);
+    expect(lastRequest!.tool_choice).toBe('auto');
+    expect(systemText(lastRequest!)).toContain('Never say a message was sent');
   });
 
   it('drafts a message: tool result back to the model, draft + token to the visitor, nothing sent', async () => {
@@ -545,12 +602,11 @@ describe('contact tool', () => {
     expect(contact.verifyDraft(out.draft.token, cookieId)).toMatchObject({ ok: true });
 
     expect(requests).toHaveLength(2);
-    expect(requests[1].tool_choice).toEqual({ type: 'none' }); // the second round cannot call tools
-    const assistant = requests[1].messages[requests[1].messages.length - 2];
-    expect(assistant.role).toBe('assistant');
-    expect(assistant.content).toEqual(expect.arrayContaining([expect.objectContaining({ type: 'tool_use', name: 'draft_message_to_ban' })]));
-    expect(toolResults(requests[1])).toEqual([expect.objectContaining({ tool_use_id: 'toolu_0', content: expect.stringContaining('NOT been sent') })]);
-    expect(toolResults(requests[1])[0].is_error).toBeUndefined();
+    expect(requests[1].tool_choice).toBe('none'); // the second round cannot call tools
+    const assistant = requests[1].messages.find(m => m.role === 'assistant')!;
+    expect(assistant.tool_calls).toEqual([expect.objectContaining({ id: 'call_0', function: expect.objectContaining({ name: 'draft_message_to_ban' }) })]);
+    expect(toolResults(requests[1])).toEqual([expect.objectContaining({ tool_call_id: 'call_0', content: expect.stringContaining('NOT been sent') })]);
+    expect(isError(toolResults(requests[1])[0])).toBe(false);
 
     const [t] = await traces();
     expect(t).toMatchObject({ outcome: 'answered', tools: ['draft_message_to_ban'], tokens: { input: 40, output: 24 } });
@@ -578,7 +634,8 @@ describe('contact tool', () => {
     queue = [{ parts: [''], tools: [{ name: 'draft_message_to_ban', input }] }, { parts: ['I need a valid email first.'] }];
     const out = await parse(await call({ messages: [q('email Bân for me')] }));
     expect(out.draft).toBeNull();
-    expect(toolResults(requests[1])[0]).toMatchObject({ is_error: true, content: expect.stringMatching(error) });
+    expect(toolResults(requests[1])[0].content).toMatch(error);
+    expect(isError(toolResults(requests[1])[0])).toBe(true);
     expect((await traces())[0].reason).toBe('draft_invalid');
   });
 
@@ -590,7 +647,16 @@ describe('contact tool', () => {
     ];
     const out = await parse(await call({ messages: [q('send two')] }));
     expect(out.draft.message).toBe(good.message);
-    expect(toolResults(requests[1]).map(r => !!r.is_error)).toEqual([false, true]);
+    expect(toolResults(requests[1]).map(isError)).toEqual([false, true]);
+  });
+
+  it('returns an error to the model when the tool arguments are not valid JSON', async () => {
+    enableMail();
+    queue = [{ parts: [''], tools: [{ name: 'draft_message_to_ban', input: {} }], rawToolArgs: '{"visitor_name": "Linh", ' }, { parts: ['Sorry.'] }];
+    const out = await parse(await call({ messages: [q('contact Bân')] }));
+    expect(out.draft).toBeNull();
+    expect(toolResults(requests[1])[0].content).toMatch(/not valid JSON/);
+    expect((await traces())[0].reason).toBe('draft_invalid');
   });
 
   it('rejects unknown tool names', async () => {
@@ -598,7 +664,7 @@ describe('contact tool', () => {
     queue = [{ parts: [''], tools: [{ name: 'send_email_now', input: good }] }, { parts: ['Sorry.'] }];
     const out = await parse(await call({ messages: [q('x')] }));
     expect(out.draft).toBeNull();
-    expect(toolResults(requests[1])[0]).toMatchObject({ is_error: true });
+    expect(isError(toolResults(requests[1])[0])).toBe(true);
   });
 
   it('never runs a tool call cut off by max_tokens', async () => {

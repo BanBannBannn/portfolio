@@ -4,7 +4,7 @@ import { connection } from 'next/server';
 import { adminEnabled, isAdmin, weakPassword } from '../../lib/admin-auth';
 import { DEFAULTS, envConfig, FIELDS, getConfig, getOverrides, type ConfigKey } from '../../lib/chat/config';
 import { hasStore } from '../../lib/chat/store';
-import { getSpend, PRICES, readDashboard, type DayRow, type Outcome, type Trace } from '../../lib/chat/telemetry';
+import { getSpend, readDashboard, type DayRow, type Outcome, type Trace } from '../../lib/chat/telemetry';
 import { clearTraceList, login, logout, resetSettings, saveSettings } from './actions';
 import './admin.css';
 
@@ -147,8 +147,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Search
           </table>
         </div>
         <p className="adm-muted">
-          Cost is estimated from token counts at {Object.entries(PRICES).map(([m, p]) => `${m.replace('claude-', '')} $${p.input}/$${p.output}`).join(', ')} per million input/output tokens.
-          The exact bill is in the Anthropic Console under Usage and Cost.
+          The chat only uses free models, so the estimated cost stays at $0 and the budgets never trip. What can run
+          out is OpenRouter&apos;s cap on free-model requests per day: check it under Credits at openrouter.ai.
         </p>
       </section>
 
@@ -236,7 +236,7 @@ function TraceRow({ t }: { t: Trace }) {
       <td className="adm-nowrap">{time}</td>
       <td><span className="adm-pill" data-outcome={t.outcome}>{t.outcome.replace('_', ' ')}</span></td>
       <td>{t.question ?? '–'}</td>
-      <td className="adm-nowrap">{t.model?.replace('claude-', '') ?? '–'}{t.effort ? ` · ${t.effort}` : ''}</td>
+      <td className="adm-nowrap">{t.model?.replace(/^nvidia\//, '').replace(/:free$/, '') ?? '–'}{t.effort ? ` · ${t.effort}` : ''}</td>
       <td className="adm-nowrap">{t.tokens ? `${int(t.tokens.input)} / ${int(t.tokens.cacheRead + t.tokens.cacheWrite)} / ${int(t.tokens.output)}` : '–'}</td>
       <td>{t.costUsd ? usd(t.costUsd, 5) : '–'}</td>
       <td>{ms(t.ttftMs)}</td>

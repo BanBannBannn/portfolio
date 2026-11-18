@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
   if (!sameOrigin(req)) return done(json(403, { error: 'forbidden' }), 'rejected', 'mail_forbidden');
   if (!isJson(req)) return done(json(415, { error: 'unsupported_media_type' }), 'rejected', 'mail_media_type');
-  if (!process.env.ANTHROPIC_API_KEY || !mailConfig()) return json(503, { error: 'not_configured' });
+  if (!process.env.OPENROUTER_API_KEY || !mailConfig()) return json(503, { error: 'not_configured' });
 
   const config = await getConfig();
   if (!config.enabled || !config.contactTool) return done(json(503, { error: 'paused' }), 'paused', 'mail_disabled');

@@ -1,12 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import Anthropic from '@anthropic-ai/sdk';
-import type { MessageStream } from '@anthropic-ai/sdk/lib/MessageStream';
 import { after } from 'next/server';
 import { createRateLimiter } from '../../../lib/rate-limit';
 import { getConfig, type ChatConfig } from '../../../lib/chat/config';
 import { CONTACT_TOOL, mailConfig, signDraft, TOOL_NAME, TOOL_PROMPT, validateDraft } from '../../../lib/chat/contact';
+import { streamCompletion, UpstreamError, type ChatMessage } from '../../../lib/chat/openrouter';
 import { clientIp, device, hmac, isJson, json, safeEqual, sameOrigin, SECURITY_HEADERS } from '../../../lib/chat/security';
 import { costUsd, getSpend, pseudonym, recordTrace, type Tokens, type Trace } from '../../../lib/chat/telemetry';
 
@@ -78,12 +77,6 @@ function caps(c: ChatConfig) {
   };
 }
 
-let client: Anthropic | null = null;
-function getClient() {
-  client ??= new Anthropic();
-  return client;
-}
-
 type Turn = { role: 'user' | 'assistant'; content: string };
 
 /**
@@ -140,7 +133,7 @@ function schedule(task: () => Promise<void>) {
 /** What the chat UI needs to know before the first question. */
 export async function GET() {
   const c = await getConfig();
-  const paused = process.env.ANTHROPIC_API_KEY ? await pausedReason(c) : 'disabled';
+  const paused = process.env.OPENROUTER_API_KEY ? await pausedReason(c) : 'disabled';
   return json(200, {
     enabled: !paused,
     maxQuestions: c.maxQuestions,
@@ -166,7 +159,7 @@ export async function POST(req: Request) {
 
   if (!sameOrigin(req)) return done(json(403, { error: 'forbidden' }), 'rejected', 'forbidden');
   if (!isJson(req)) return done(json(415, { error: 'unsupported_media_type' }), 'rejected', 'unsupported_media_type');
-  if (!process.env.ANTHROPIC_API_KEY) return json(503, { error: 'not_configured' });
+  if (!process.env.OPENROUTER_API_KEY) return json(503, { error: 'not_configured' });
 
   const config = await getConfig();
   const dev = device(req);
@@ -231,10 +224,10 @@ export async function POST(req: Request) {
   if (config.logContent) trace.q = question;
 
   const toolsOn = config.contactTool && mailConfig() !== null;
-  const system: Anthropic.TextBlockParam[] = [
-    { type: 'text', text: toolsOn ? `${SYSTEM}\n${TOOL_PROMPT}` : SYSTEM, cache_control: { type: 'ephemeral' } },
+  const messages: ChatMessage[] = [
+    { role: 'system', content: toolsOn ? `${SYSTEM}\n${TOOL_PROMPT}` : SYSTEM },
+    ...turns.map(t => ({ role: t.role, content: t.content })),
   ];
-  const messages: Anthropic.MessageParam[] = turns.map(t => ({ role: t.role, content: t.content }));
 
   // Record once the stream has finished, whichever way it ends.
   let finish!: () => void;
@@ -244,7 +237,8 @@ export async function POST(req: Request) {
     await recordTrace(trace);
   });
 
-  let current: MessageStream | null = null;
+  const stop = new AbortController(); // aborted when the visitor closes the stream
+  const gone = () => req.signal.aborted || stop.signal.aborted;
   const encoder = new TextEncoder();
   const body$ = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -253,6 +247,7 @@ export async function POST(req: Request) {
       let draft: (ReturnType<typeof validateDraft> & { ok: true })['draft'] | null = null;
       let draftToken = '';
       const usage: Tokens = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
+      let reportedCost: number | undefined; // what OpenRouter says it charged, if it says
 
       const emit = (s: string) => {
         let clean = s.replaceAll(SIG_MARK, '').replaceAll(DRAFT_MARK, '');
@@ -270,66 +265,74 @@ export async function POST(req: Request) {
 
       try {
         for (let round = 0; round < MAX_ROUNDS; round++) {
-          current = getClient().messages.stream(
+          const final = await streamCompletion(
             {
               model: config.model,
-              max_tokens: config.maxOutputTokens,
-              output_config: { effort: config.effort },
-              // The system prompt is identical on every request, so cache it.
-              system,
+              maxTokens: config.maxOutputTokens,
+              effort: config.effort,
               messages,
               // The second round only finishes the reply: no more tool calls.
-              ...(toolsOn ? { tools: [CONTACT_TOOL], tool_choice: { type: round === 0 ? 'auto' : 'none' } } : {}),
+              ...(toolsOn ? { tools: [CONTACT_TOOL], toolChoice: round === 0 ? ('auto' as const) : ('none' as const) } : {}),
+              signal: AbortSignal.any([req.signal, stop.signal]),
             },
-            { signal: req.signal },
+            emit,
           );
-          for await (const event of current) {
-            if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') emit(event.delta.text);
-          }
-          const final = await current.finalMessage();
-          const u = final.usage;
-          usage.input += u.input_tokens;
-          usage.output += u.output_tokens;
-          usage.cacheRead += u.cache_read_input_tokens ?? 0;
-          usage.cacheWrite += u.cache_creation_input_tokens ?? 0;
-          trace.stopReason = final.stop_reason ?? undefined;
-          trace.requestId = current.request_id ?? undefined;
+          usage.input += final.tokens.input;
+          usage.output += final.tokens.output;
+          usage.cacheRead += final.tokens.cacheRead;
+          usage.cacheWrite += final.tokens.cacheWrite;
+          if (final.costUsd !== undefined) reportedCost = (reportedCost ?? 0) + final.costUsd;
+          trace.stopReason = final.stopReason ?? undefined;
+          trace.requestId = final.id;
 
           // Only a turn that ended *because of* a tool call runs it. A turn cut off
           // by max_tokens or a refusal may hold a half-written call: never run that.
-          if (final.stop_reason !== 'tool_use' || round === MAX_ROUNDS - 1) break;
+          if (final.stopReason !== 'tool_use' || round === MAX_ROUNDS - 1) break;
 
-          const results: Anthropic.ToolResultBlockParam[] = [];
-          for (const block of final.content) {
-            if (block.type !== 'tool_use') continue;
-            trace.tools = [...(trace.tools ?? []), block.name];
-            const fail = (msg: string) => results.push({ type: 'tool_result', tool_use_id: block.id, is_error: true, content: msg });
-            if (block.name !== TOOL_NAME) { fail(`Unknown tool ${block.name}.`); continue; }
+          const results: ChatMessage[] = [];
+          for (const call of final.toolCalls) {
+            const name = call.function.name;
+            trace.tools = [...(trace.tools ?? []), name];
+            const fail = (msg: string) => results.push({ role: 'tool', tool_call_id: call.id, content: `Error: ${msg}` });
+            if (name !== TOOL_NAME) { fail(`Unknown tool ${name}.`); continue; }
             if (draft) { fail('Only one draft per reply. The first draft is already shown to the visitor.'); continue; }
-            const v = validateDraft(block.input);
+            let input: unknown;
+            try {
+              input = JSON.parse(call.function.arguments || '{}');
+            } catch {
+              trace.reason = 'draft_invalid';
+              fail('The arguments were not valid JSON.');
+              continue;
+            }
+            const v = validateDraft(input);
             if (!v.ok) { trace.reason = 'draft_invalid'; fail(v.error); continue; }
             draft = v.draft;
             draftToken = signDraft(v.draft, dev.id);
             results.push({
-              type: 'tool_result',
-              tool_use_id: block.id,
+              role: 'tool',
+              tool_call_id: call.id,
               content:
                 'Draft created and shown to the visitor with a Send button. It has NOT been sent. ' +
                 'In one short sentence, ask them to check it and press Send, or tell you what to change.',
             });
           }
-          // Pass the assistant turn back unchanged (thinking blocks included), then the results.
-          messages.push({ role: 'assistant', content: final.content }, { role: 'user', content: results });
+          // Pass the assistant turn back as it was, then the results.
+          messages.push({ role: 'assistant', content: final.text || null, tool_calls: final.toolCalls }, ...results);
           if (answer) gapPending = true;
         }
 
         trace.tokens = usage;
-        trace.costUsd = costUsd(config.model, usage);
+        trace.costUsd = reportedCost ?? costUsd(config.model, usage);
         if (trace.stopReason === 'refusal') {
           trace.outcome = 'refused';
           emit((answer ? '\n\n' : '') + `I can't help with that one. For anything else, email Bân at ${CONTACT}.`);
         } else if (!answer && draft) {
           emit('Here is your message to Bân. Check it below and press Send, or tell me what to change.');
+        } else if (!answer && trace.stopReason === 'max_tokens') {
+          // A reasoning model can spend every token thinking and never answer.
+          trace.outcome = 'error';
+          trace.reason = 'out_of_tokens';
+          emit(`Sorry, I ran out of room before I could answer. Try a shorter question, or email Bân at ${CONTACT}.`);
         } else if (!answer) {
           trace.outcome = 'refused';
           emit(`I can't help with that one. For anything else, email Bân at ${CONTACT}.`);
@@ -339,19 +342,22 @@ export async function POST(req: Request) {
       } catch (err) {
         if (usage.output) {
           trace.tokens = usage;
-          trace.costUsd = costUsd(config.model, usage);
+          trace.costUsd = reportedCost ?? costUsd(config.model, usage);
         }
-        if (req.signal.aborted) {
+        if (gone()) {
           trace.outcome = 'aborted';
           trace.durationMs = Math.round(performance.now() - started);
           finish();
           return controller.close();
         }
         trace.outcome = 'error';
-        trace.reason = err instanceof Anthropic.APIError ? `api_${err.status ?? 'connection'}` : 'stream_failed';
+        const upstream = err instanceof UpstreamError ? err : null;
+        trace.reason = upstream ? `api_${upstream.status ?? 'connection'}` : 'stream_failed';
         // Log status only: never the visitor's text, never anything credential-like.
-        console.error('[chat]', err instanceof Anthropic.APIError ? `${err.status} ${err.name}` : 'stream failed');
-        emit((answer ? '\n\n' : '') + `Sorry, the assistant is unavailable right now. You can email Bân at ${CONTACT}.`);
+        console.error('[chat]', upstream ? `upstream ${upstream.status ?? 'connection'}` : 'stream failed');
+        // 429: the free model's own request cap on OpenRouter, not the visitor's doing.
+        const sorry = upstream?.status === 429 ? 'the free model is busy right now, please try again in a minute' : 'the assistant is unavailable right now';
+        emit((answer ? '\n\n' : '') + `Sorry, ${sorry}. You can email Bân at ${CONTACT}.`);
         draft = null; // don't offer a draft from a reply that failed
       }
 
@@ -368,7 +374,7 @@ export async function POST(req: Request) {
       finish();
     },
     cancel() {
-      current?.abort();
+      stop.abort();
       trace.outcome = 'aborted';
       trace.durationMs = Math.round(performance.now() - started);
       finish();

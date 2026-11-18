@@ -13,9 +13,9 @@
  *
  * Mail goes through Resend's free tier (3,000/month, 100/day).
  */
-import type Anthropic from '@anthropic-ai/sdk';
 import { randomUUID } from 'node:crypto';
 import { createRateLimiter } from '../rate-limit';
+import type { ToolDef } from './openrouter';
 import { hmac, safeEqual } from './security';
 import { hasStore, pipeline } from './store';
 
@@ -33,34 +33,35 @@ export const LIMITS = { name: 80, email: 254, message: 1_000 } as const;
 const DRAFT_TTL_MS = 30 * 60_000;
 const MAX_TOKEN_CHARS = 4_096;
 
-export const CONTACT_TOOL: Anthropic.Tool = {
-  name: TOOL_NAME,
-  description:
-    "Prepare a message from the visitor to Bân. It does NOT send anything: the draft is shown to the visitor, " +
-    'who reviews it and presses Send themselves. Use it only when the visitor asks to contact Bân, leave a message, ' +
-    'or wants Bân to get back to them, and only after they have given their email address. ' +
-    "Write the message from the visitor's point of view using only what the visitor said; do not add claims, offers or details they did not give.",
-  // Small input: let the API buffer and validate it rather than streaming partial JSON.
-  strict: true,
-  input_schema: {
-    type: 'object',
-    properties: {
-      visitor_name: {
-        type: 'string',
-        description: `The visitor's name as they gave it, or an empty string if they did not. Max ${LIMITS.name} characters.`,
+export const CONTACT_TOOL: ToolDef = {
+  type: 'function',
+  function: {
+    name: TOOL_NAME,
+    description:
+      "Prepare a message from the visitor to Bân. It does NOT send anything: the draft is shown to the visitor, " +
+      'who reviews it and presses Send themselves. Use it only when the visitor asks to contact Bân, leave a message, ' +
+      'or wants Bân to get back to them, and only after they have given their email address. ' +
+      "Write the message from the visitor's point of view using only what the visitor said; do not add claims, offers or details they did not give.",
+    parameters: {
+      type: 'object',
+      properties: {
+        visitor_name: {
+          type: 'string',
+          description: `The visitor's name as they gave it, or an empty string if they did not. Max ${LIMITS.name} characters.`,
+        },
+        visitor_email: {
+          type: 'string',
+          description: 'The email address the visitor gave for Bân to reply to. Never guess or invent one.',
+        },
+        topic: { type: 'string', enum: Object.keys(TOPICS) },
+        message: {
+          type: 'string',
+          description: `The message to Bân, in the visitor's words and language. Max ${LIMITS.message} characters.`,
+        },
       },
-      visitor_email: {
-        type: 'string',
-        description: 'The email address the visitor gave for Bân to reply to. Never guess or invent one.',
-      },
-      topic: { type: 'string', enum: Object.keys(TOPICS) },
-      message: {
-        type: 'string',
-        description: `The message to Bân, in the visitor's words and language. Max ${LIMITS.message} characters.`,
-      },
+      required: ['visitor_name', 'visitor_email', 'topic', 'message'],
+      additionalProperties: false,
     },
-    required: ['visitor_name', 'visitor_email', 'topic', 'message'],
-    additionalProperties: false,
   },
 };
 

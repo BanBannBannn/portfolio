@@ -42,7 +42,7 @@ export type Trace = {
   ttftMs?: number;         // request start → first answer text
   durationMs: number;      // request start → last byte
   stopReason?: string;
-  requestId?: string;      // Anthropic request id (or mail provider id), for support tickets
+  requestId?: string;      // OpenRouter generation id (or mail provider id), for support tickets
   tools?: string[];        // tools the model called, or 'send_mail'
   q?: string;              // question, only with "Save questions and answers"
   a?: string;              // answer, likewise
@@ -50,11 +50,17 @@ export type Trace = {
 
 // ---- cost --------------------------------------------------------------------------
 
-/** USD per million tokens. Cache writes are 5-minute TTL. Check https://claude.com/pricing when changing models. */
+/**
+ * USD per million tokens. Every selectable model is a free (":free") one, so
+ * the estimate is $0 and the budgets below never trip. They are kept as a
+ * safety net: if a paid model is ever added to MODELS, give it a price here
+ * (https://openrouter.ai/models) and the budgets apply again.
+ */
 export const PRICES: Record<string, { input: number; output: number; cacheRead: number; cacheWrite: number }> = {
-  'claude-haiku-5-5': { input: 0.1, output: 0.5, cacheRead: 0.01, cacheWrite: 0.125 },
-  'claude-sonnet-5-5': { input: 2, output: 10, cacheRead: 0.1, cacheWrite: 2.5 },
-  'claude-opus-5-5': { input: 4, output: 20, cacheRead: 0.2, cacheWrite: 5 },
+  'nvidia/nemotron-3-ultra-550b-a55b:free': { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  'nvidia/nemotron-3.5-super-vl:free': { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  'nvidia/nemotron-3.5-lightning:free': { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+  'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free': { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 };
 
 export function costUsd(model: string, t: Tokens) {
@@ -66,7 +72,7 @@ export function costUsd(model: string, t: Tokens) {
 // ---- helpers -----------------------------------------------------------------------
 
 export function pseudonym(kind: string, value: string) {
-  const secret = process.env.ANTHROPIC_API_KEY ?? 'no-key';
+  const secret = process.env.OPENROUTER_API_KEY ?? 'no-key';
   return createHmac('sha256', secret).update(`${kind}:${value}`).digest('base64url').slice(0, 10);
 }
 
